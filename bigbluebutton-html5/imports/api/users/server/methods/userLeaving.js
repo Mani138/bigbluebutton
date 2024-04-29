@@ -6,7 +6,7 @@ import AuthTokenValidation from '/imports/api/auth-token-validation';
 import Users from '/imports/api/users';
 import ClientConnections from '/imports/startup/server/ClientConnections';
 
-export default function userLeaving(meetingId, userId, connectionId) {
+export default async function userLeaving(meetingId, userId, connectionId) {
   try {
     const REDIS_CONFIG = Meteor.settings.private.redis;
     const CHANNEL = REDIS_CONFIG.channels.toAkkaApps;
@@ -19,14 +19,14 @@ export default function userLeaving(meetingId, userId, connectionId) {
       userId,
     };
 
-    const user = Users.findOne(selector);
+    const user = await Users.findOneAsync(selector);
 
     if (!user) {
       Logger.info(`Skipping userLeaving. Could not find ${userId} in ${meetingId}`);
       return;
     }
 
-    const auth = AuthTokenValidation.findOne({
+    const auth = await AuthTokenValidation.findOneAsync({
       meetingId,
       userId,
     }, { sort: { updatedAt: -1 } });
@@ -45,7 +45,20 @@ export default function userLeaving(meetingId, userId, connectionId) {
 
     ClientConnections.removeClientConnection(`${meetingId}--${userId}`, connectionId);
 
-    Logger.info(`User '${userId}' is leaving meeting '${meetingId}'`);
+    let reason;
+
+    if (user.loggedOut) {
+      // User explicitly requested logout.
+      reason = 'logout';
+    } else if (user.exitReason) {
+      // User didn't requested logout but exited graciously.
+      reason = user.exitReason;
+    } else {
+      // User didn't exit graciously (disconnection).
+      reason = 'disconnection';
+    }
+
+    Logger.info(`User '${userId}' is leaving meeting '${meetingId}' reason=${reason}`);
     RedisPubSub.publishUserMessage(CHANNEL, EVENT_NAME, meetingId, userId, payload);
   } catch (err) {
     Logger.error(`Exception while invoking method userLeaving ${err.stack}`);

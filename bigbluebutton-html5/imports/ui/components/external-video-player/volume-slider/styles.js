@@ -3,15 +3,15 @@ import styled from 'styled-components';
 const Slider = styled.div`
   width: 0.9em;
   display: flex;
-  position: relative;
-  bottom: 3.5em;
+  position: absolute;
+  bottom: 2.5em;
   left: 1em;
   padding: 0.25rem 0.5rem;
   min-width: 200px;
   background-color: rgba(0,0,0,0.5);
   border-radius: 32px;
 
-  & > i {
+  i {
     color: white;
     transition: 0.5s;
     font-size: 200%;

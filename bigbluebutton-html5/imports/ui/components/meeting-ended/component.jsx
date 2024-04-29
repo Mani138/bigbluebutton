@@ -14,6 +14,8 @@ import Users from '/imports/api/users';
 import Meetings from '/imports/api/meetings';
 import AudioManager from '/imports/ui/services/audio-manager';
 import { meetingIsBreakout } from '/imports/ui/components/app/service';
+import { isLearningDashboardEnabled } from '/imports/ui/services/features';
+import Storage from '/imports/ui/services/storage/session';
 
 const intlMessage = defineMessages({
   410: {
@@ -66,7 +68,7 @@ const intlMessage = defineMessages({
   },
   confirmDesc: {
     id: 'app.leaveConfirmation.confirmDesc',
-    description: 'adds context to confim option',
+    description: 'adds context to confirm option',
   },
   sendLabel: {
     id: 'app.feedback.sendFeedback',
@@ -88,13 +90,17 @@ const intlMessage = defineMessages({
     id: 'app.meeting.logout.ejectedFromMeeting',
     description: 'message when the user is removed by someone',
   },
+  max_participants_reason: {
+    id: 'app.meeting.logout.maxParticipantsReached',
+    description: 'message when the user is rejected due to max participants limit',
+  },
   validate_token_failed_eject_reason: {
     id: 'app.meeting.logout.validateTokenFailedEjectReason',
     description: 'invalid auth token',
   },
   user_inactivity_eject_reason: {
     id: 'app.meeting.logout.userInactivityEjectReason',
-    description: 'message for whom was kicked by inactivity',
+    description: 'message to whom was kicked by inactivity',
   },
   open_activity_report_btn: {
     id: 'app.learning-dashboard.clickHereToOpen',
@@ -114,6 +120,7 @@ const propTypes = {
 const defaultProps = {
   ejectedReason: null,
   endedReason: null,
+  callback: () => {},
 };
 
 class MeetingEnded extends PureComponent {
@@ -135,9 +142,9 @@ class MeetingEnded extends PureComponent {
       this.localUserRole = user.role;
     }
 
-    const meeting = Meetings.findOne({ id: user.meetingID });
+    const meeting = Meetings.findOne({ id: user?.meetingID });
     if (meeting) {
-      this.endWhenNoModeratorMinutes = meeting.durationProps.endWhenNoModeratorDelayInMinutes;
+      this.endWhenNoModeratorMinutes = meeting.endWhenNoModeratorDelayInMinutes;
 
       const endedBy = Users.findOne({
         userId: meeting.meetingEndedBy,
@@ -155,7 +162,10 @@ class MeetingEnded extends PureComponent {
     this.getEndingMessage = this.getEndingMessage.bind(this);
 
     AudioManager.exitAudio();
-    Meteor.disconnect();
+    Storage.removeItem('getEchoTest');
+    Storage.removeItem('isFirstJoin');
+    const { callback, endedReason } = this.props;
+    callback(endedReason, () => Meteor.disconnect());
   }
 
   setSelectedStar(starNumber) {
@@ -166,22 +176,16 @@ class MeetingEnded extends PureComponent {
 
   shouldShowFeedback() {
     const { dispatched } = this.state;
-    return getFromUserSettings('bbb_ask_for_feedback_on_logout', Meteor.settings.public.app.askForFeedbackOnLogout) && !dispatched;
+    return getFromUserSettings('bbb_ask_for_feedback_on_logout', window.meetingClientSettings.public.app.askForFeedbackOnLogout) && !dispatched;
   }
 
   confirmRedirect() {
-    const {
-      selected,
-    } = this.state;
-
-    if (selected <= 0) {
-      if (meetingIsBreakout()) window.close();
-      if (allowRedirectToLogoutURL()) logoutRouteHandler();
-    }
+    if (meetingIsBreakout()) window.close();
+    if (allowRedirectToLogoutURL()) logoutRouteHandler();
   }
 
   getEndingMessage() {
-    const { intl, code, endedReason } = this.props;
+    const { intl, code, ejectedReason, endedReason } = this.props;
 
     if (endedReason && endedReason === 'ENDED_DUE_TO_NO_MODERATOR') {
       return this.endWhenNoModeratorMinutes === 1
@@ -191,6 +195,10 @@ class MeetingEnded extends PureComponent {
 
     if (this.meetingEndedBy) {
       return intl.formatMessage(intlMessage.messageEndedByUser, { 0: this.meetingEndedBy });
+    }
+
+    if (intlMessage[ejectedReason]) {
+      return intl.formatMessage(intlMessage[ejectedReason]);
     }
 
     if (intlMessage[code]) {
@@ -232,18 +240,22 @@ class MeetingEnded extends PureComponent {
       dispatched: true,
     });
 
-    if (allowRedirectToLogoutURL()) {
-      const FEEDBACK_WAIT_TIME = 500;
-      setTimeout(() => {
-        fetch(url, options)
-          .then(() => {
-            logoutRouteHandler();
-          })
-          .catch(() => {
-            logoutRouteHandler();
-          });
-      }, FEEDBACK_WAIT_TIME);
-    }
+    fetch(url, options).then(() => {
+      if (this.localUserRole === 'VIEWER') {
+        const REDIRECT_WAIT_TIME = 5000;
+        setTimeout(() => {
+          logoutRouteHandler();
+        }, REDIRECT_WAIT_TIME);
+      }
+    }).catch((e) => {
+      logger.warn({
+        logCode: 'user_feedback_not_sent_error',
+        extraInfo: {
+          errorName: e.name,
+          errorMessage: e.message,
+        },
+      }, `Unable to send feedback: ${e.message}`);
+    });
   }
 
   renderNoFeedback() {
@@ -265,7 +277,7 @@ class MeetingEnded extends PureComponent {
               <div>
                 {
                   LearningDashboardService.isModerator()
-                  && LearningDashboardService.isLearningDashboardEnabled() === true
+                  && isLearningDashboardEnabled() === true
                   // Always set cookie in case Dashboard is already opened
                   && LearningDashboardService.setLearningDashboardCookie() === true
                     ? (
@@ -302,7 +314,6 @@ class MeetingEnded extends PureComponent {
     const { intl, code, ejectedReason } = this.props;
     const {
       selected,
-      dispatched,
     } = this.state;
 
     const noRating = selected <= 0;
@@ -339,16 +350,15 @@ class MeetingEnded extends PureComponent {
                 ) : null}
               </div>
             ) : null}
-            {noRating && allowRedirectToLogoutURL() ? (
+            {noRating ? (
               <Styled.MeetingEndedButton
                 color="primary"
-                onClick={this.confirmRedirect}
+                onClick={() => this.setState({ dispatched: true })}
                 label={intl.formatMessage(intlMessage.buttonOkay)}
                 description={intl.formatMessage(intlMessage.confirmDesc)}
               />
             ) : null}
-
-            {!noRating && !dispatched ? (
+            {!noRating ? (
               <Styled.MeetingEndedButton
                 color="primary"
                 onClick={this.sendFeedback}

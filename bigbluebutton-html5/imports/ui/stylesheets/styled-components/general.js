@@ -46,9 +46,10 @@ const toolbarItemTrianglePadding = '2px';
 const toolbarMargin = '.8rem';
 
 const fileLineWidth = '16.75rem';
-const iconPaddingMd = '.65rem';
+const iconPaddingMd = '.4rem';
 const statusIconSize = '16px';
 const toastMdMargin = '.5rem';
+const toastMarginMobile = '.35rem';
 const uploadListHeight = '30vh';
 const modalInnerWidth = '40rem';
 const statusInfoHeight = '8px';
@@ -63,7 +64,7 @@ const pollMdMargin = '0.7rem';
 const pollResultWidth = '15rem';
 const pollInputHeight = '2.5rem';
 const pollWidth = '18rem';
-const overlayIndex = '9999';
+const overlayIndex = '999';
 const overlayOpacity = '0.349';
 const pollIndex = '1016';
 const pollBottomOffset = '4.5rem';
@@ -82,6 +83,11 @@ const btnSpacing = '.35rem';
 
 const toastIconMd = '2rem';
 const toastIconSm = '1.2rem';
+
+const presentationMenuHeight = '45px';
+
+const styleMenuOffset = '6.25rem';
+const styleMenuOffsetSmall = '5rem';
 
 export {
   borderSizeSmall,
@@ -131,6 +137,7 @@ export {
   iconPaddingMd,
   statusIconSize,
   toastMdMargin,
+  toastMarginMobile,
   uploadListHeight,
   modalInnerWidth,
   statusInfoHeight,
@@ -160,4 +167,7 @@ export {
   btnSpacing,
   toastIconMd,
   toastIconSm,
+  presentationMenuHeight,
+  styleMenuOffset,
+  styleMenuOffsetSmall,
 };

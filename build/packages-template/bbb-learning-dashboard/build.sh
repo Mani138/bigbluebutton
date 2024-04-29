@@ -23,13 +23,13 @@ done
 
 mkdir -p staging/var/bigbluebutton/learning-dashboard
 
-mkdir -p staging/etc/bigbluebutton/nginx
-cp learning-dashboard.nginx staging/etc/bigbluebutton/nginx
+mkdir -p staging/usr/share/bigbluebutton/nginx
+cp learning-dashboard.nginx staging/usr/share/bigbluebutton/nginx
 
 
 # install dependencies, create build, copy build over to destination
-npm ci
-npm run build
+npm ci --omit=dev
+DISABLE_ESLINT_PLUGIN=true npm run build
 cp -r build/* staging/var/bigbluebutton/learning-dashboard
 
 ##

@@ -1,12 +1,12 @@
 import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
-import _ from 'lodash';
 import { defineMessages, injectIntl } from 'react-intl';
 import caseInsensitiveReducer from '/imports/utils/caseInsensitiveReducer';
 import { Session } from 'meteor/session';
 import Styled from './styles';
 import Service from './service';
 import Settings from '/imports/ui/services/settings';
+import { uniqueId } from '/imports/utils/string-utils';
 
 const intlMessages = defineMessages({
   usersTitle: {
@@ -40,6 +40,10 @@ const intlMessages = defineMessages({
   secretPollLabel: {
     id: 'app.poll.liveResult.secretLabel',
     description: 'label shown instead of users in poll responses if poll is secret',
+  },
+  noAnswersLabel: {
+    id: 'app.poll.noAnswerWarning',
+    description: 'label shown when no answers have been received',
   },
 });
 
@@ -79,11 +83,16 @@ class LiveResult extends PureComponent {
         if (responses) {
           const response = responses.find(r => r.userId === user.userId);
           if (response) {
-            const answerKeys = [];
+            const formattedAnswers = [];
             response.answerIds.forEach((answerId) => {
-              answerKeys.push(answers[answerId].key);
+              const formattedMessageIndex = answers[answerId]?.key?.toLowerCase();
+              const formattedAnswer = defaultPoll && pollAnswerIds[formattedMessageIndex]
+                ? intl.formatMessage(pollAnswerIds[formattedMessageIndex])
+                : answers[answerId].key;
+
+              formattedAnswers.push(formattedAnswer);
             });
-            answer = answerKeys.join(', ');
+            answer = formattedAnswers.join(', ');
           }
         }
 
@@ -94,18 +103,13 @@ class LiveResult extends PureComponent {
       })
       .sort(Service.sortUsers)
       .reduce((acc, user) => {
-        const formattedMessageIndex = user.answer.toLowerCase();
         return ([
           ...acc,
           (
-            <tr key={_.uniqueId('stats-')}>
+            <tr key={uniqueId('stats-')}>
               <Styled.ResultLeft>{user.name}</Styled.ResultLeft>
               <Styled.ResultRight data-test="receivedAnswer">
-                {
-                  defaultPoll && pollAnswerIds[formattedMessageIndex]
-                    ? intl.formatMessage(pollAnswerIds[formattedMessageIndex])
-                    : user.answer
-                }
+                {user.answer}
               </Styled.ResultRight>
             </tr>
           ),
@@ -115,7 +119,7 @@ class LiveResult extends PureComponent {
     const pollStats = [];
 
     answers.reduce(caseInsensitiveReducer, []).map((obj) => {
-      const formattedMessageIndex = obj.key.toLowerCase();
+      const formattedMessageIndex = obj?.key?.toLowerCase();
       const pct = Math.round(obj.numVotes / numResponders * 100);
       const pctFotmatted = `${Number.isNaN(pct) ? 0 : pct}%`;
 
@@ -124,7 +128,7 @@ class LiveResult extends PureComponent {
       };
 
       return pollStats.push(
-        <Styled.Main key={_.uniqueId('stats-')}>
+        <Styled.Main key={uniqueId('stats-')}>
           <Styled.Left>
             {
               defaultPoll && pollAnswerIds[formattedMessageIndex]
@@ -134,7 +138,7 @@ class LiveResult extends PureComponent {
           </Styled.Left>
           <Styled.Center>
             <Styled.BarShade style={calculatedWidth} />
-            <Styled.BarVal>{obj.numVotes || 0}</Styled.BarVal>
+            <Styled.BarVal data-test="numberOfVotes">{obj.numVotes || 0}</Styled.BarVal>
           </Styled.Center>
           <Styled.Right>
             {pctFotmatted}
@@ -167,6 +171,8 @@ class LiveResult extends PureComponent {
       stopPoll,
       handleBackClick,
       currentPoll,
+      publishPoll,
+      handleChatFormsOpen,
     } = this.props;
 
     const { userAnswers, pollStats, currentPollQuestion } = this.state;
@@ -191,7 +197,7 @@ class LiveResult extends PureComponent {
     return (
       <div>
         <Styled.Stats>
-          {currentPollQuestion ? <Styled.Title>{currentPollQuestion}</Styled.Title> : null}
+          {currentPollQuestion ? <Styled.Title data-test="currentPollQuestion">{currentPollQuestion}</Styled.Title> : null}
           <Styled.Status>
             {waiting
               ? (
@@ -212,11 +218,12 @@ class LiveResult extends PureComponent {
           ? (
             <Styled.ButtonsActions>
               <Styled.PublishButton
-                disabled={!isMeteorConnected}
+                disabled={!isMeteorConnected || !currentPoll.numResponders}
                 onClick={() => {
                   Session.set('pollInitiated', false);
-                  Service.publishPoll();
+                  publishPoll(currentPoll?.id);
                   stopPoll();
+                  handleChatFormsOpen();
                 }}
                 label={intl.formatMessage(intlMessages.publishLabel)}
                 data-test="publishPollingLabel"
@@ -243,8 +250,9 @@ class LiveResult extends PureComponent {
               color="primary"
               data-test="restartPoll"
             />
-          )
-        }
+          )}
+        {currentPoll && !currentPoll.numResponders
+        && intl.formatMessage(intlMessages.noAnswersLabel)}
         <Styled.Separator />
         { currentPoll && !currentPoll.secretPoll
           ? (
@@ -280,6 +288,7 @@ LiveResult.propTypes = {
       users: PropTypes.arrayOf(PropTypes.string),
     }),
   ]),
+  handleChatFormsOpen: PropTypes.func.isRequired,
   stopPoll: PropTypes.func.isRequired,
   handleBackClick: PropTypes.func.isRequired,
 };

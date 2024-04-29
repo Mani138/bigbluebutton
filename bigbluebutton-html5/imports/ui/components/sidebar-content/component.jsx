@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import Resizable from 're-resizable';
 import { ACTIONS, PANELS } from '../layout/enums';
-import ChatContainer from '/imports/ui/components/chat/container';
+import ChatContainer from '/imports/ui/components/chat/chat-graphql/component';
 import NotesContainer from '/imports/ui/components/notes/container';
 import PollContainer from '/imports/ui/components/poll/container';
 import CaptionsContainer from '/imports/ui/components/captions/container';
 import BreakoutRoomContainer from '/imports/ui/components/breakout-room/container';
-import WaitingUsersPanel from '/imports/ui/components/waiting-users/container';
+import TimerContainer from '/imports/ui/components/timer/container';
+import GuestUsersManagementPanel from '/imports/ui/components/waiting-users/waiting-users-graphql/component';
 import Styled from './styles';
-import ErrorBoundary from '/imports/ui/components/error-boundary/component';
-import FallbackView from '/imports/ui/components/fallback-errors/fallback-view/component';
+import ErrorBoundary from '/imports/ui/components/common/error-boundary/component';
+import FallbackView from '/imports/ui/components/common/fallback-errors/fallback-view/component';
 
 const propTypes = {
   top: PropTypes.number.isRequired,
@@ -47,6 +48,10 @@ const SidebarContent = (props) => {
     resizableEdge,
     contextDispatch,
     sidebarContentPanel,
+    amIPresenter,
+    isSharedNotesPinned,
+    currentSlideId,
+    amIModerator,
   } = props;
 
   const [resizableWidth, setResizableWidth] = useState(width);
@@ -61,9 +66,6 @@ const SidebarContent = (props) => {
       setResizableHeight(height);
     }
   }, [width, height]);
-
-  useEffect(() => {
-  }, [resizeStartWidth, resizeStartHeight]);
 
   const setSidebarContentSize = (dWidth, dHeight) => {
     const newWidth = resizeStartWidth + dWidth;
@@ -123,22 +125,40 @@ const SidebarContent = (props) => {
         width,
         height,
       }}
+      handleStyles={{
+        left: { height: '100vh' },
+        right: { height: '100vh' },
+      }}
     >
       {sidebarContentPanel === PANELS.CHAT
-      && (
-      <ErrorBoundary
-        Fallback={FallbackView}
-      >
-        <ChatContainer />
-      </ErrorBoundary>
+        && (
+          <ErrorBoundary
+            Fallback={FallbackView}
+          >
+            <ChatContainer width={width} />
+          </ErrorBoundary>
+        )}
+      {!isSharedNotesPinned && (
+        <NotesContainer
+          isToSharedNotesBeShow={sidebarContentPanel === PANELS.SHARED_NOTES}
+        />
       )}
-      {sidebarContentPanel === PANELS.SHARED_NOTES && <NotesContainer />}
-      {sidebarContentPanel === PANELS.CAPTIONS && <CaptionsContainer />}
+      {sidebarContentPanel === PANELS.CAPTIONS && <CaptionsContainer amIModerator={amIModerator} />}
       {sidebarContentPanel === PANELS.BREAKOUT && <BreakoutRoomContainer />}
-      {sidebarContentPanel === PANELS.WAITING_USERS && <WaitingUsersPanel />}
-      <Styled.Poll style={{ minWidth, top: '0', display: pollDisplay }} id="pollPanel">
-        <PollContainer smallSidebar={smallSidebar} />
-      </Styled.Poll>
+      {sidebarContentPanel === PANELS.TIMER && <TimerContainer isModerator={amIModerator} />}
+      {sidebarContentPanel === PANELS.WAITING_USERS && <GuestUsersManagementPanel />}
+      {sidebarContentPanel === PANELS.POLL && (
+        <Styled.Poll
+          style={{ minWidth, top: '0', display: pollDisplay }}
+          id="pollPanel"
+        >
+          <PollContainer
+            smallSidebar={smallSidebar}
+            amIPresenter={amIPresenter}
+            currentSlideId={currentSlideId}
+          />
+        </Styled.Poll>
+      )}
     </Resizable>
   );
 };

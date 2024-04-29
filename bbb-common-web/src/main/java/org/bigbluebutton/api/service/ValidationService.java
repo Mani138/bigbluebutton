@@ -14,6 +14,9 @@ import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -35,12 +38,13 @@ public class ValidationService {
         GET_MEETING_INFO("getMeetingInfo", RequestType.GET),
         GET_MEETINGS("getMeetings", RequestType.GET),
         GET_SESSIONS("getSessions", RequestType.GET),
-        SET_POLL_XML("setPollXML", RequestType.POST),
         GUEST_WAIT("guestWait", RequestType.GET),
         ENTER("enter", RequestType.GET),
         STUNS("stuns", RequestType.GET),
         SIGN_OUT("signOut", RequestType.GET),
-        LEARNING_DASHBOARD("learningDashboard", RequestType.GET);
+        LEARNING_DASHBOARD("learningDashboard", RequestType.GET),
+        GET_JOIN_URL("getJoinUrl", RequestType.GET),
+        INSERT_DOCUMENT("insertDocument", RequestType.GET);
 
         private final String name;
         private final RequestType requestType;
@@ -55,6 +59,7 @@ public class ValidationService {
     }
 
     private String securitySalt;
+    private String supportedChecksumAlgorithms;
     private Boolean allowRequestsWithoutSession;
 
     private ValidatorFactory validatorFactory;
@@ -67,7 +72,6 @@ public class ValidationService {
 
     public Map<String, String> validate(ApiCall apiCall, Map<String, String[]> params, String queryString) {
         log.info("Validating {} request with query string {}", apiCall.getName(), queryString);
-
         params = sanitizeParams(params);
 
         Request request = initializeRequest(apiCall, params, queryString);
@@ -75,12 +79,26 @@ public class ValidationService {
 
         if(request == null) {
             violations.put("validationError", "Request not recognized");
+        } else if(params.containsKey("presentationUploadExternalUrl")) {
+            String urlToValidate = params.get("presentationUploadExternalUrl")[0];
+            if(!this.isValidURL(urlToValidate)) {
+                violations.put("validationError", "Param 'presentationUploadExternalUrl' is not a valid URL");
+            }
         } else {
             request.populateFromParamsMap(params);
             violations = performValidation(request);
         }
 
         return violations;
+    }
+
+    boolean isValidURL(String url) {
+        try {
+            new URL(url).toURI();
+            return true;
+        } catch (MalformedURLException | URISyntaxException e) {
+            return false;
+        }
     }
 
     private Request initializeRequest(ApiCall apiCall, Map<String, String[]> params, String queryString) {
@@ -115,12 +133,12 @@ public class ValidationService {
                     case GET_MEETING_INFO:
                         request = new MeetingInfo(checksum);
                         break;
-                    case SET_POLL_XML:
-                        request = new SetPollXML(checksum);
-                        break;
                     case GET_MEETINGS:
                     case GET_SESSIONS:
                         request = new SimpleRequest(checksum);
+                        break;
+                    case INSERT_DOCUMENT:
+                        request = new InsertDocument(checksum);
                         break;
                     case GUEST_WAIT:
                         request = new GuestWait();
@@ -137,12 +155,9 @@ public class ValidationService {
                     case LEARNING_DASHBOARD:
                         request = new LearningDashboard();
                         break;
-                }
-            case POST:
-                checksum = new PostChecksum(apiCall.getName(), checksumValue, params);
-                switch(apiCall) {
-                    case SET_POLL_XML:
-                        request = new SetPollXML(checksum);
+                    case GET_JOIN_URL:
+                        request = new GetJoinUrl();
+                        break;
                 }
         }
 
@@ -272,6 +287,9 @@ public class ValidationService {
 
     public void setSecuritySalt(String securitySalt) { this.securitySalt = securitySalt; }
     public String getSecuritySalt() { return securitySalt; }
+
+    public void setSupportedChecksumAlgorithms(String supportedChecksumAlgorithms) { this.supportedChecksumAlgorithms = supportedChecksumAlgorithms; }
+    public String getSupportedChecksumAlgorithms() { return supportedChecksumAlgorithms; }
 
     public void setAllowRequestsWithoutSession(Boolean allowRequestsWithoutSession) {
         this.allowRequestsWithoutSession = allowRequestsWithoutSession;

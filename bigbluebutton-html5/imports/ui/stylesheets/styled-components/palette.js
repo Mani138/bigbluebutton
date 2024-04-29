@@ -17,6 +17,7 @@ const colorTransparent = 'var(--color-transparent, #ff000000)';
 
 const colorPrimary = 'var(--color-primary, #0F70D7)';
 const colorDanger = 'var(--color-danger, #DF2721)';
+const colorDangerDark = 'var(--color-danger-dark, #AE1010)';
 const colorSuccess = 'var(--color-success, #008081)';
 const colorWarning = 'var(--color-warning, purple)';
 const colorOffline = `var(--color-offline, ${colorGrayLight})`;
@@ -24,6 +25,8 @@ const colorMuted = 'var(--color-muted, #586571)';
 const colorMutedBackground = 'var(--color-muted-background, #F3F6F9)';
 
 const colorBackground = `var(--color-background, ${colorGrayDark})`;
+const colorOverlay = 'var(--color-overlay, rgba(6, 23, 42, 0.75))';
+
 const userListBg = `var(--user-list-bg, ${colorOffWhite})`;
 const userListText = `var(--user-list-text, ${colorGray})`;
 const unreadMessagesBg = `var(--unread-messages-bg, ${colorDanger})`;
@@ -39,9 +42,16 @@ const btnDefaultColor = `var(--btn-default-color, ${colorGray})`;
 const btnDefaultBg = `var(--btn-default-bg, ${colorWhite})`;
 const btnDefaultBorder = `var(--btn-default-border, ${colorWhite})`;
 
-const btnPrimaryBorder = `var(--btn-primary-border, ${colorPrimary})`;
+const btnDefaultGhostColor = `var(--btn-default-color, ${colorWhite})`;
+const btnDefaultGhostBg = 'var(--btn-default-bg, rgba(255, 255, 255, 0.1))'; // colorWhite, 10%
+const btnDefaultGhostBorder = 'var(--btn-default-border, rgba(255, 255, 255, 0.5))'; // colorWhite, 50%
+const btnDefaultGhostActiveBg = 'var(--btn-default-active-bg, rgba(255, 255, 255, 0.2))'; // colorWhite, 20%
+
+const btnPrimaryBorder = 'var(--btn-primary-border, rgba(15, 112, 215, 0.5))'; // colorPrimary, 50%
 const btnPrimaryColor = `var(--btn-primary-color, ${colorWhite})`;
 const btnPrimaryBg = `var(--btn-primary-bg, ${colorPrimary})`;
+const btnPrimaryHoverBg = 'var(--btn-primary-hover-bg, #0C57A7)';
+const btnPrimaryActiveBg = 'var(--btn-primary-active-bg, #0A4B8F)';
 
 const btnSuccessBorder = `var(--btn-success-border, ${colorSuccess})`;
 const btnSuccessColor = `var(--btn-success-color, ${colorWhite})`;
@@ -54,6 +64,7 @@ const btnWarningBg = `var(--btn-warning-bg, ${colorWarning})`;
 const btnDangerBorder = `var(--btn-danger-border, ${colorDanger})`;
 const btnDangerColor = `var(--btn-danger-color, ${colorWhite})`;
 const btnDangerBg = `var(--btn-danger-bg, ${colorDanger})`;
+const btnDangerBgHover = 'var(--btn-danger-bg-hover, #C61C1C)';
 
 const btnDarkBorder = `var(--btn-dark-border, ${colorDanger})`;
 const btnDarkColor = `var(--btn-dark-color, ${colorWhite})`;
@@ -75,6 +86,8 @@ const loaderBullet = `var(--loader-bullet, ${colorWhite})`;
 const systemMessageBackgroundColor = 'var(--system-message-background-color, #F9FBFC)';
 const systemMessageBorderColor = 'var(--system-message-border-color, #C5CDD4)';
 const systemMessageFontColor = `var(--system-message-font-color, ${colorGrayDark})`;
+const highlightedMessageBackgroundColor = 'var(--system-message-background-color, #fef9f1)';
+const highlightedMessageBorderColor = 'var(--system-message-border-color, #f5c67f)';
 const colorHeading = `var(--color-heading, ${colorGrayDark})`;
 const palettePlaceholderText = 'var(--palette-placeholder-text, #787675)';
 const pollAnnotationGray = 'var(--poll-annotation-gray, #333333)';
@@ -89,7 +102,7 @@ const colorContentBackground = 'var(--color-content-background, #1B2A3A)';
 const dropdownBg = `var(--dropdown-bg, ${colorWhite})`;
 
 const pollStatsBorderColor = 'var(--poll-stats-border-color, #D4D9DF)';
-const pollBlue = 'var(--poll-blue, #1A73D4)';
+const pollBlue = `var(--poll-blue, ${colorPrimary})`;
 
 const toastDefaultColor = `var(--toast-default-color, ${colorWhite})`;
 const toastDefaultBg = `var(--toast-default-bg, ${colorGray})`;
@@ -102,6 +115,9 @@ const toastSuccessBg = `var(--toast-success-bg, ${colorSuccess})`;
 
 const toastErrorColor = `var(--toast-error-color, ${colorWhite})`;
 const toastErrorBg = `var(--toast-error-bg, ${colorDanger})`;
+
+const webcamBackgroundColor = 'var(--webcam-background-color, #001428FF)';
+const webcamPlaceholderBorder = 'var(--webcam-placeholder-border, rgba(255, 255, 255, 0.5))'; // colorWhite, 50%
 
 const toastWarningColor = `var(--toast-warning-color, ${colorWhite})`;
 const toastWarningBg = `var(--toast-warning-bg, ${colorWarning})`;
@@ -121,9 +137,11 @@ export {
   colorBlueLightest,
   colorPrimary,
   colorDanger,
+  colorDangerDark,
   colorSuccess,
   colorWarning,
   colorBackground,
+  colorOverlay,
   userListBg,
   userListText,
   unreadMessagesBg,
@@ -136,9 +154,15 @@ export {
   btnDefaultColor,
   btnDefaultBg,
   btnDefaultBorder,
+  btnDefaultGhostColor,
+  btnDefaultGhostBg,
+  btnDefaultGhostBorder,
+  btnDefaultGhostActiveBg,
   btnPrimaryBorder,
   btnPrimaryColor,
   btnPrimaryBg,
+  btnPrimaryHoverBg,
+  btnPrimaryActiveBg,
   btnSuccessBorder,
   btnSuccessColor,
   btnSuccessBg,
@@ -161,9 +185,12 @@ export {
   userThumbnailBorder,
   loaderBg,
   loaderBullet,
+  btnDangerBgHover,
   systemMessageBackgroundColor,
   systemMessageBorderColor,
   systemMessageFontColor,
+  highlightedMessageBackgroundColor,
+  highlightedMessageBorderColor,
   colorHeading,
   palettePlaceholderText,
   pollAnnotationGray,
@@ -186,4 +213,6 @@ export {
   toastErrorBg,
   toastWarningColor,
   toastWarningBg,
+  webcamBackgroundColor,
+  webcamPlaceholderBorder,
 };

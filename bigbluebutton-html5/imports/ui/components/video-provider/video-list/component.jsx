@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { defineMessages, injectIntl } from 'react-intl';
-import _ from 'lodash';
+import { throttle } from '/imports/utils/throttle';
+import { range } from '/imports/utils/array-utils';
 import Styled from './styles';
 import VideoListItemContainer from './video-list-item/container';
 import AutoplayOverlay from '../../media/autoplay-overlay/component';
@@ -64,7 +65,6 @@ class VideoList extends Component {
     super(props);
 
     this.state = {
-      focusedId: false,
       optimalGrid: {
         cols: 1,
         rows: 1,
@@ -77,7 +77,7 @@ class VideoList extends Component {
     this.grid = null;
     this.canvas = null;
     this.failedMediaElements = [];
-    this.handleCanvasResize = _.throttle(this.handleCanvasResize.bind(this), 66,
+    this.handleCanvasResize = throttle(this.handleCanvasResize.bind(this), 66,
       {
         leading: true,
         trailing: true,
@@ -85,7 +85,6 @@ class VideoList extends Component {
     this.setOptimalGrid = this.setOptimalGrid.bind(this);
     this.handleAllowAutoplay = this.handleAllowAutoplay.bind(this);
     this.handlePlayElementFailed = this.handlePlayElementFailed.bind(this);
-    this.handleVideoFocus = this.handleVideoFocus.bind(this);
     this.autoplayWasHandled = false;
   }
 
@@ -96,22 +95,18 @@ class VideoList extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { focusedId } = this.state;
-    const { layoutType, cameraDock, streams } = this.props;
+    const { layoutType, cameraDock, streams, focusedId } = this.props;
     const { width: cameraDockWidth, height: cameraDockHeight } = cameraDock;
     const {
       layoutType: prevLayoutType,
       cameraDock: prevCameraDock,
       streams: prevStreams,
+      focusedId: prevFocusedId,
     } = prevProps;
     const { width: prevCameraDockWidth, height: prevCameraDockHeight } = prevCameraDock;
 
-    const focusedStream = streams.filter((item) => item.stream === focusedId);
-
-    if (focusedId && focusedStream.length === 0) {
-      this.handleVideoFocus(focusedId);
-    }
     if (layoutType !== prevLayoutType
+      || focusedId !== prevFocusedId
       || cameraDockWidth !== prevCameraDockWidth
       || cameraDockHeight !== prevCameraDockHeight
       || streams.length !== prevStreams.length) {
@@ -165,14 +160,6 @@ class VideoList extends Component {
     }
   }
 
-  handleVideoFocus(id) {
-    const { focusedId } = this.state;
-    this.setState({
-      focusedId: focusedId !== id ? id : false,
-    }, this.handleCanvasResize);
-    window.dispatchEvent(new Event('videoFocusChange'));
-  }
-
   handleCanvasResize() {
     if (!this.ticking) {
       window.requestAnimationFrame(() => {
@@ -190,27 +177,30 @@ class VideoList extends Component {
       layoutContextDispatch,
     } = this.props;
     let numItems = streams.length;
+
     if (numItems < 1 || !this.canvas || !this.grid) {
       return;
     }
-    const { focusedId } = this.state;
+    const { focusedId } = this.props;
     const canvasWidth = cameraDock?.width;
     const canvasHeight = cameraDock?.height;
 
     const gridGutter = parseInt(window.getComputedStyle(this.grid)
       .getPropertyValue('grid-row-gap'), 10);
-    const hasFocusedItem = numItems > 2 && focusedId;
+
+    const hasFocusedItem = streams.filter(s => s.stream === focusedId).length && numItems > 2;
+
     // Has a focused item so we need +3 cells
     if (hasFocusedItem) {
       numItems += 3;
     }
-    const optimalGrid = _.range(1, numItems + 1)
+    const optimalGrid = range(1, numItems + 1)
       .reduce((currentGrid, col) => {
         const testGrid = findOptimalGrid(
           canvasWidth, canvasHeight, gridGutter,
           ASPECT_RATIO, numItems, col,
         );
-        // We need a minimun of 2 rows and columns for the focused
+        // We need a minimum of 2 rows and columns for the focused
         const focusedConstraint = hasFocusedItem ? testGrid.rows > 1 && testGrid.columns > 1 : true;
         const betterThanCurrent = testGrid.filledArea > currentGrid.filledArea;
         return focusedConstraint && betterThanCurrent ? testGrid : currentGrid;
@@ -301,35 +291,48 @@ class VideoList extends Component {
   renderVideoList() {
     const {
       streams,
+      onVirtualBgDrop,
       onVideoItemMount,
       onVideoItemUnmount,
       swapLayout,
+      handleVideoFocus,
+      focusedId,
+      users,
     } = this.props;
-    const { focusedId } = this.state;
     const numOfStreams = streams.length;
 
-    return streams.map((vs) => {
-      const { stream, userId, name } = vs;
-      const isFocused = focusedId === stream && numOfStreams > 2;
+    let videoItems = streams;
+
+    return videoItems.map((item) => {
+      const { userId, name } = item;
+      const isStream = !!item.stream;
+      const stream = isStream ? item.stream : null;
+      const key = isStream ? stream : userId;
+      const isFocused = isStream && focusedId === stream && numOfStreams > 2;
 
       return (
         <Styled.VideoListItem
-          key={stream}
-          focused={focusedId === stream && numOfStreams > 2}
+          key={key}
+          focused={isFocused}
+          data-test="webcamVideoItem"
         >
           <VideoListItemContainer
+            users={users}
             numOfStreams={numOfStreams}
             cameraId={stream}
             userId={userId}
             name={name}
             focused={isFocused}
-            onHandleVideoFocus={this.handleVideoFocus}
+            isStream={isStream}
+            onHandleVideoFocus={isStream ? handleVideoFocus : null}
             onVideoItemMount={(videoRef) => {
               this.handleCanvasResize();
-              onVideoItemMount(stream, videoRef);
+              if (isStream) onVideoItemMount(stream, videoRef);
             }}
+            stream={streams.find((s) => s.userId === userId) || {}}
             onVideoItemUnmount={onVideoItemUnmount}
             swapLayout={swapLayout}
+            onVirtualBgDrop={(type, name, data) => { return isStream ? onVirtualBgDrop(stream, type, name, data) : null; }}
           />
         </Styled.VideoListItem>
       );
@@ -341,6 +344,7 @@ class VideoList extends Component {
       streams,
       intl,
       cameraDock,
+      isGridEnabled,
     } = this.props;
     const { optimalGrid, autoplayBlocked } = this.state;
     const { position } = cameraDock;
@@ -357,7 +361,7 @@ class VideoList extends Component {
       >
         {this.renderPreviousPageButton()}
 
-        {!streams.length ? null : (
+        {!streams.length && !isGridEnabled ? null : (
           <Styled.VideoList
             ref={(ref) => {
               this.grid = ref;

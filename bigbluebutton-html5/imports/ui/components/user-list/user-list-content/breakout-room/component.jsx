@@ -1,19 +1,25 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { defineMessages, injectIntl } from 'react-intl';
-import Icon from '/imports/ui/components/icon/component';
+import Icon from '/imports/ui/components/common/icon/component';
 import Styled from './styles';
 import { ACTIONS, PANELS } from '../../../layout/enums';
+import MeetingRemainingTime from '../../../notifications-bar/meeting-remaining-time/container';
 
 const intlMessages = defineMessages({
   breakoutTitle: {
     id: 'app.createBreakoutRoom.title',
     description: 'breakout title',
   },
+  breakoutTimeRemaining: {
+    id: 'app.createBreakoutRoom.duration',
+    description: 'Message that tells how much time is remaining for the breakout room',
+  },
 });
 
 const BreakoutRoomItem = ({
   hasBreakoutRoom,
+  breakoutRoom,
   sidebarContentPanel,
   layoutContextDispatch,
   intl,
@@ -47,10 +53,25 @@ const BreakoutRoomItem = ({
               onClick={toggleBreakoutPanel}
               data-test="breakoutRoomsItem"
               aria-label={intl.formatMessage(intlMessages.breakoutTitle)}
-              onKeyPress={() => {}}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  toggleBreakoutPanel();
+                }
+              }}
             >
               <Icon iconName="rooms" />
-              <span aria-hidden>{intl.formatMessage(intlMessages.breakoutTitle)}</span>
+              <div aria-hidden>
+                <Styled.BreakoutTitle>
+                  {intl.formatMessage(intlMessages.breakoutTitle)}
+                </Styled.BreakoutTitle>
+                <Styled.BreakoutDuration>
+                  <MeetingRemainingTime
+                    messageDuration={intlMessages.breakoutTimeRemaining}
+                    breakoutRoom={breakoutRoom}
+                  />
+                </Styled.BreakoutDuration>
+              </div>
             </Styled.ListItem>
           </Styled.List>
         </Styled.ScrollableList>

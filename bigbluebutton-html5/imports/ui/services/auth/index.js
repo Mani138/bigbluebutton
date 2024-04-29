@@ -3,14 +3,12 @@ import { Tracker } from 'meteor/tracker';
 
 import Storage from '/imports/ui/services/storage/session';
 
-import { initAnnotationsStreamListener } from '/imports/ui/components/whiteboard/service';
 import allowRedirectToLogoutURL from '/imports/ui/components/meeting-ended/service';
-import { initCursorStreamListener } from '/imports/ui/components/cursor/service';
-import SubscriptionRegistry from '/imports/ui/services/subscription-registry/subscriptionRegistry';
 import { ValidationStates } from '/imports/api/auth-token-validation';
+import logger from '/imports/startup/client/logger';
+import { makeVar } from '@apollo/client';
 
-const CONNECTION_TIMEOUT = Meteor.settings.public.app.connectionTimeout;
-
+const CONNECTION_TIMEOUT = window.meetingClientSettings.public.app.connectionTimeout;
 class Auth {
   constructor() {
     this._loggedIn = {
@@ -24,10 +22,11 @@ class Auth {
       return;
     }
 
+
     this._meetingID = Storage.getItem('meetingID');
     this._userID = Storage.getItem('userID');
     this._authToken = Storage.getItem('authToken');
-    this._sessionToken = Storage.getItem('sessionToken');
+    this._sessionToken = makeVar(Storage.getItem('sessionToken'));
     this._logoutURL = Storage.getItem('logoutURL');
     this._confname = Storage.getItem('confname');
     this._externUserID = Storage.getItem('externUserID');
@@ -44,13 +43,26 @@ class Auth {
     Storage.setItem('meetingID', this._meetingID);
   }
 
-  set sessionToken(sessionToken) {
-    this._sessionToken = sessionToken;
-    Storage.setItem('sessionToken', this._sessionToken);
+  set _connectionID(connectionId) {
+    this._connectionID = connectionId;
+    Storage.setItem('sessionToken', this._connectionID);
   }
 
   get sessionToken() {
-    return this._sessionToken;
+    try {
+      return this._sessionToken();
+    } catch {
+      return null;
+    }
+  }
+
+  set sessionToken(sessionToken) {
+    if (this._sessionToken) {
+      this._sessionToken(sessionToken);
+    } else {
+      this._sessionToken = makeVar(sessionToken);
+    }
+    Storage.setItem('sessionToken', this._sessionToken());
   }
 
   get userID() {
@@ -142,15 +154,6 @@ class Auth {
     };
   }
 
-  set _connectionID(connectionId) {
-    this._connectionID = connectionId;
-    Storage.setItem('sessionToken', this._connectionID);
-  }
-
-  get sessionToken() {
-    return this._sessionToken;
-  }
-
   set(
     meetingId,
     requesterUserId,
@@ -187,9 +190,11 @@ class Auth {
 
   logout() {
     if (!this.loggedIn) {
+      if (allowRedirectToLogoutURL()) {
+        return Promise.resolve(this._logoutURL);
+      }
       return Promise.resolve();
     }
-
 
     return new Promise((resolve) => {
       if (allowRedirectToLogoutURL()) {
@@ -214,42 +219,50 @@ class Auth {
     }
 
     this.loggedIn = false;
+    this.isAuthenticating = true;
+
     return this.validateAuthToken()
       .then(() => {
         this.loggedIn = true;
         this.uniqueClientSession = `${this.sessionToken}-${Math.random().toString(36).substring(6)}`;
+      })
+      .catch((err) => {
+        logger.error(`Failed to validate token: ${err.description}`);
+        Session.set('codeError', err.error);
+        Session.set('errorMessageDescription', err.description);
+      })
+      .finally(() => {
+        this.isAuthenticating = false;
       });
   }
 
   validateAuthToken() {
     return new Promise((resolve, reject) => {
-      SubscriptionRegistry.createSubscription('current-user');
       const validationTimeout = setTimeout(() => {
         reject({
           error: 408,
           description: 'Authentication timeout',
         });
       }, CONNECTION_TIMEOUT);
+      Meteor.callAsync('validateAuthToken', this.meetingID, this.userID, this.token, this.externUserID)
+        .then((result) => {
+          const authenticationTokenValidation = result;
+          if (!authenticationTokenValidation) return;
 
-      Meteor.call('validateAuthToken', this.meetingID, this.userID, this.token, this.externUserID, (err, result) => {
-        const authenticationTokenValidation = result;
-        if (!authenticationTokenValidation) return;
-
-        switch (authenticationTokenValidation.validationStatus) {
-          case ValidationStates.INVALID:
-            reject({ error: 403, description: authenticationTokenValidation.reason });
-            break;
-          case ValidationStates.VALIDATED:
-            initCursorStreamListener();
-            initAnnotationsStreamListener();
-            clearTimeout(validationTimeout);
-            this.connectionID = authenticationTokenValidation.connectionId;
-            Session.set('userWillAuth', false);
-            setTimeout(() => resolve(true), 100);
-            break;
-          default:
-        }
-      });
+          switch (authenticationTokenValidation.validationStatus) {
+            case ValidationStates.INVALID:
+              reject({ error: 403, description: authenticationTokenValidation.reason });
+              break;
+            case ValidationStates.VALIDATED:
+              clearTimeout(validationTimeout);
+              this.connectionID = authenticationTokenValidation.connectionId;
+              this.connectionAuthTime = new Date().getTime();
+              Session.set('userWillAuth', false);
+              setTimeout(() => resolve(true), 100);
+              break;
+            default:
+          }
+        });
     });
   }
 

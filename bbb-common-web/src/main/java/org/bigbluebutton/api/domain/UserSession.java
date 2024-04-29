@@ -41,10 +41,12 @@ public class UserSession {
   public String welcome = null;
   public String logoutUrl = null;
   public String defaultLayout = "NOLAYOUT";
+  public String enforceLayout = "";
   public String avatarURL;
   public String guestStatus = GuestPolicy.ALLOW;
   public String clientUrl = null;
   public Boolean excludeFromDashboard = false;
+  public Boolean leftGuestLobby = false;
 
   private AtomicInteger connections = new AtomicInteger(0);
   
@@ -127,6 +129,10 @@ public class UserSession {
 
   public String getDefaultLayout() {
     return defaultLayout;
+  }
+
+  public String getEnforceLayout() {
+    return enforceLayout;
   }
 
   public String getAvatarURL() {

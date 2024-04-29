@@ -1,6 +1,6 @@
 package org.bigbluebutton.core.pubsub.senders
 
-import akka.actor.{ Actor, ActorLogging, Props }
+import org.apache.pekko.actor.{ Actor, ActorLogging, Props }
 import org.bigbluebutton.SystemConfiguration
 import com.fasterxml.jackson.databind.JsonNode
 import org.bigbluebutton.common2.msgs._
@@ -65,8 +65,6 @@ class ReceivedJsonMsgHandlerActor(
         // Route via meeting manager as there is a race condition if we send directly to meeting
         // because the meeting actor might not have been created yet.
         route[RegisterUserReqMsg](meetingManagerChannel, envelope, jsonNode)
-      case EjectDuplicateUserReqMsg.NAME =>
-        route[EjectDuplicateUserReqMsg](meetingManagerChannel, envelope, jsonNode)
       case UserJoinMeetingReqMsg.NAME =>
         routeGenericMsg[UserJoinMeetingReqMsg](envelope, jsonNode)
       case UserJoinMeetingAfterReconnectReqMsg.NAME =>
@@ -111,8 +109,16 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[UserActivitySignCmdMsg](envelope, jsonNode)
       case ChangeUserPinStateReqMsg.NAME =>
         routeGenericMsg[ChangeUserPinStateReqMsg](envelope, jsonNode)
-      case SelectRandomViewerReqMsg.NAME =>
-        routeGenericMsg[SelectRandomViewerReqMsg](envelope, jsonNode)
+      case ChangeUserMobileFlagReqMsg.NAME =>
+        routeGenericMsg[ChangeUserMobileFlagReqMsg](envelope, jsonNode)
+      case UserConnectionAliveReqMsg.NAME =>
+        routeGenericMsg[UserConnectionAliveReqMsg](envelope, jsonNode)
+      case UserConnectionUpdateRttReqMsg.NAME =>
+        routeGenericMsg[UserConnectionUpdateRttReqMsg](envelope, jsonNode)
+      case SetUserSpeechLocaleReqMsg.NAME =>
+        routeGenericMsg[SetUserSpeechLocaleReqMsg](envelope, jsonNode)
+      case SetUserSpeechOptionsReqMsg.NAME =>
+        routeGenericMsg[SetUserSpeechOptionsReqMsg](envelope, jsonNode)
 
       // Poll
       case StartCustomPollReqMsg.NAME =>
@@ -147,6 +153,10 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[CamBroadcastStoppedInSfuEvtMsg](envelope, jsonNode)
       case EjectUserCamerasCmdMsg.NAME =>
         routeGenericMsg[EjectUserCamerasCmdMsg](envelope, jsonNode)
+      case GetWebcamsOnlyForModeratorReqMsg.NAME =>
+        routeGenericMsg[GetWebcamsOnlyForModeratorReqMsg](envelope, jsonNode)
+      case UpdateWebcamsOnlyForModeratorCmdMsg.NAME =>
+        routeGenericMsg[UpdateWebcamsOnlyForModeratorCmdMsg](envelope, jsonNode)
 
       // Pads
       case PadCreateGroupReqMsg.NAME =>
@@ -171,6 +181,10 @@ class ReceivedJsonMsgHandlerActor(
         routePadMsg[PadPatchSysMsg](envelope, jsonNode)
       case PadUpdatePubMsg.NAME =>
         routeGenericMsg[PadUpdatePubMsg](envelope, jsonNode)
+      case PadCapturePubMsg.NAME =>
+        routePadMsg[PadCapturePubMsg](envelope, jsonNode)
+      case PadPinnedReqMsg.NAME =>
+        routeGenericMsg[PadPinnedReqMsg](envelope, jsonNode)
 
       // Voice
       case RecordingStartedVoiceConfEvtMsg.NAME =>
@@ -211,6 +225,12 @@ class ReceivedJsonMsgHandlerActor(
         routeVoiceMsg[VoiceConfCallStateEvtMsg](envelope, jsonNode)
       case GetGlobalAudioPermissionReqMsg.NAME =>
         routeGenericMsg[GetGlobalAudioPermissionReqMsg](envelope, jsonNode)
+      case GetMicrophonePermissionReqMsg.NAME =>
+        routeGenericMsg[GetMicrophonePermissionReqMsg](envelope, jsonNode)
+      case ChannelHoldChangedVoiceConfEvtMsg.NAME =>
+        routeVoiceMsg[ChannelHoldChangedVoiceConfEvtMsg](envelope, jsonNode)
+      case ListenOnlyModeToggledInSfuEvtMsg.NAME =>
+        routeVoiceMsg[ListenOnlyModeToggledInSfuEvtMsg](envelope, jsonNode)
 
       // Breakout rooms
       case BreakoutRoomsListMsg.NAME =>
@@ -223,19 +243,37 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[EndAllBreakoutRoomsMsg](envelope, jsonNode)
       case TransferUserToMeetingRequestMsg.NAME =>
         routeGenericMsg[TransferUserToMeetingRequestMsg](envelope, jsonNode)
-      case ExtendBreakoutRoomsTimeReqMsg.NAME =>
-        routeGenericMsg[ExtendBreakoutRoomsTimeReqMsg](envelope, jsonNode)
+      case UpdateBreakoutRoomsTimeReqMsg.NAME =>
+        routeGenericMsg[UpdateBreakoutRoomsTimeReqMsg](envelope, jsonNode)
+      case SendMessageToAllBreakoutRoomsReqMsg.NAME =>
+        routeGenericMsg[SendMessageToAllBreakoutRoomsReqMsg](envelope, jsonNode)
+      case ChangeUserBreakoutReqMsg.NAME =>
+        routeGenericMsg[ChangeUserBreakoutReqMsg](envelope, jsonNode)
 
       // Layout
       case GetCurrentLayoutReqMsg.NAME =>
         routeGenericMsg[GetCurrentLayoutReqMsg](envelope, jsonNode)
       case BroadcastLayoutMsg.NAME =>
         routeGenericMsg[BroadcastLayoutMsg](envelope, jsonNode)
+      case BroadcastPushLayoutMsg.NAME =>
+        routeGenericMsg[BroadcastPushLayoutMsg](envelope, jsonNode)
 
       case UserLeaveReqMsg.NAME =>
         routeGenericMsg[UserLeaveReqMsg](envelope, jsonNode)
+      case ChangeUserRaiseHandReqMsg.NAME =>
+        routeGenericMsg[ChangeUserRaiseHandReqMsg](envelope, jsonNode)
+      case ChangeUserAwayReqMsg.NAME =>
+        routeGenericMsg[ChangeUserAwayReqMsg](envelope, jsonNode)
       case ChangeUserEmojiCmdMsg.NAME =>
         routeGenericMsg[ChangeUserEmojiCmdMsg](envelope, jsonNode)
+      case ChangeUserReactionEmojiReqMsg.NAME =>
+        routeGenericMsg[ChangeUserReactionEmojiReqMsg](envelope, jsonNode)
+      case UserReactionTimeExpiredCmdMsg.NAME =>
+        routeGenericMsg[UserReactionTimeExpiredCmdMsg](envelope, jsonNode)
+      case ClearAllUsersEmojiCmdMsg.NAME =>
+        routeGenericMsg[ClearAllUsersEmojiCmdMsg](envelope, jsonNode)
+      case ClearAllUsersReactionCmdMsg.NAME =>
+        routeGenericMsg[ClearAllUsersReactionCmdMsg](envelope, jsonNode)
       case ChangeUserRoleCmdMsg.NAME =>
         routeGenericMsg[ChangeUserRoleCmdMsg](envelope, jsonNode)
 
@@ -246,10 +284,10 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[ModifyWhiteboardAccessPubMsg](envelope, jsonNode)
       case ClearWhiteboardPubMsg.NAME =>
         routeGenericMsg[ClearWhiteboardPubMsg](envelope, jsonNode)
-      case UndoWhiteboardPubMsg.NAME =>
-        routeGenericMsg[UndoWhiteboardPubMsg](envelope, jsonNode)
-      case SendWhiteboardAnnotationPubMsg.NAME =>
-        routeGenericMsg[SendWhiteboardAnnotationPubMsg](envelope, jsonNode)
+      case DeleteWhiteboardAnnotationsPubMsg.NAME =>
+        routeGenericMsg[DeleteWhiteboardAnnotationsPubMsg](envelope, jsonNode)
+      case SendWhiteboardAnnotationsPubMsg.NAME =>
+        routeGenericMsg[SendWhiteboardAnnotationsPubMsg](envelope, jsonNode)
       case GetWhiteboardAnnotationsReqMsg.NAME =>
         routeGenericMsg[GetWhiteboardAnnotationsReqMsg](envelope, jsonNode)
       case ClientToServerLatencyTracerMsg.NAME =>
@@ -262,6 +300,8 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[SetCurrentPagePubMsg](envelope, jsonNode)
       case ResizeAndMovePagePubMsg.NAME =>
         routeGenericMsg[ResizeAndMovePagePubMsg](envelope, jsonNode)
+      case SlideResizedPubMsg.NAME =>
+        routeGenericMsg[SlideResizedPubMsg](envelope, jsonNode)
       case RemovePresentationPubMsg.NAME =>
         routeGenericMsg[RemovePresentationPubMsg](envelope, jsonNode)
       case SetPresentationDownloadablePubMsg.NAME =>
@@ -274,6 +314,10 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[PreuploadedPresentationsSysPubMsg](envelope, jsonNode)
       case PresentationUploadedFileTooLargeErrorSysPubMsg.NAME =>
         routeGenericMsg[PresentationUploadedFileTooLargeErrorSysPubMsg](envelope, jsonNode)
+      case PresentationHasInvalidMimeTypeErrorSysPubMsg.NAME =>
+        routeGenericMsg[PresentationHasInvalidMimeTypeErrorSysPubMsg](envelope, jsonNode)
+      case PresentationUploadedFileTimeoutErrorSysPubMsg.NAME =>
+        routeGenericMsg[PresentationUploadedFileTimeoutErrorSysPubMsg](envelope, jsonNode)
       case PresentationConversionUpdateSysPubMsg.NAME =>
         routeGenericMsg[PresentationConversionUpdateSysPubMsg](envelope, jsonNode)
       case PresentationPageCountErrorSysPubMsg.NAME =>
@@ -294,14 +338,18 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[PdfConversionInvalidErrorSysPubMsg](envelope, jsonNode)
       case AssignPresenterReqMsg.NAME =>
         routeGenericMsg[AssignPresenterReqMsg](envelope, jsonNode)
+      case MakePresentationDownloadReqMsg.NAME =>
+        routeGenericMsg[MakePresentationDownloadReqMsg](envelope, jsonNode)
+      case NewPresFileAvailableMsg.NAME =>
+        routeGenericMsg[NewPresFileAvailableMsg](envelope, jsonNode)
+      case PresAnnStatusMsg.NAME =>
+        routeGenericMsg[PresAnnStatusMsg](envelope, jsonNode)
 
       // Presentation Pods
       case CreateNewPresentationPodPubMsg.NAME =>
         routeGenericMsg[CreateNewPresentationPodPubMsg](envelope, jsonNode)
       case RemovePresentationPodPubMsg.NAME =>
         routeGenericMsg[RemovePresentationPodPubMsg](envelope, jsonNode)
-      case SetPresenterInPodReqMsg.NAME =>
-        routeGenericMsg[SetPresenterInPodReqMsg](envelope, jsonNode)
 
       // Caption
       case EditCaptionHistoryPubMsg.NAME =>
@@ -336,10 +384,6 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[GetRecordingStatusReqMsg](envelope, jsonNode)
       case GetScreenshareStatusReqMsg.NAME =>
         routeGenericMsg[GetScreenshareStatusReqMsg](envelope, jsonNode)
-      case GetWebcamsOnlyForModeratorReqMsg.NAME =>
-        routeGenericMsg[GetWebcamsOnlyForModeratorReqMsg](envelope, jsonNode)
-      case UpdateWebcamsOnlyForModeratorCmdMsg.NAME =>
-        routeGenericMsg[UpdateWebcamsOnlyForModeratorCmdMsg](envelope, jsonNode)
 
       // Lock settings
       case LockUserInMeetingCmdMsg.NAME =>
@@ -356,14 +400,16 @@ class ReceivedJsonMsgHandlerActor(
         routeVoiceMsg[ScreenshareRtmpBroadcastStartedVoiceConfEvtMsg](envelope, jsonNode)
       case ScreenshareRtmpBroadcastStoppedVoiceConfEvtMsg.NAME =>
         routeVoiceMsg[ScreenshareRtmpBroadcastStoppedVoiceConfEvtMsg](envelope, jsonNode)
-      case ScreenshareStartedVoiceConfEvtMsg.NAME =>
-        routeVoiceMsg[ScreenshareStartedVoiceConfEvtMsg](envelope, jsonNode)
-      case ScreenshareStoppedVoiceConfEvtMsg.NAME =>
-        routeVoiceMsg[ScreenshareStoppedVoiceConfEvtMsg](envelope, jsonNode)
       case GetScreenBroadcastPermissionReqMsg.NAME =>
         routeGenericMsg[GetScreenBroadcastPermissionReqMsg](envelope, jsonNode)
       case GetScreenSubscribePermissionReqMsg.NAME =>
         routeGenericMsg[GetScreenSubscribePermissionReqMsg](envelope, jsonNode)
+
+      // AudioCaptions
+      case UpdateTranscriptPubMsg.NAME =>
+        routeGenericMsg[UpdateTranscriptPubMsg](envelope, jsonNode)
+      case TranscriptionProviderErrorMsg.NAME =>
+        routeGenericMsg[TranscriptionProviderErrorMsg](envelope, jsonNode)
 
       // GroupChats
       case GetGroupChatsReqMsg.NAME =>
@@ -375,6 +421,16 @@ class ReceivedJsonMsgHandlerActor(
       case CreateGroupChatReqMsg.NAME =>
         routeGenericMsg[CreateGroupChatReqMsg](envelope, jsonNode)
 
+      //Plugin
+      case PluginDataChannelDispatchMessageMsg.NAME =>
+        routeGenericMsg[PluginDataChannelDispatchMessageMsg](envelope, jsonNode)
+
+      case PluginDataChannelDeleteMessageMsg.NAME =>
+        routeGenericMsg[PluginDataChannelDeleteMessageMsg](envelope, jsonNode)
+
+      case PluginDataChannelResetMsg.NAME =>
+        routeGenericMsg[PluginDataChannelResetMsg](envelope, jsonNode)
+
       // ExternalVideo
       case StartExternalVideoPubMsg.NAME =>
         routeGenericMsg[StartExternalVideoPubMsg](envelope, jsonNode)
@@ -382,6 +438,38 @@ class ReceivedJsonMsgHandlerActor(
         routeGenericMsg[UpdateExternalVideoPubMsg](envelope, jsonNode)
       case StopExternalVideoPubMsg.NAME =>
         routeGenericMsg[StopExternalVideoPubMsg](envelope, jsonNode)
+
+      // Timer
+      case CreateTimerPubMsg.NAME =>
+        routeGenericMsg[CreateTimerPubMsg](envelope, jsonNode)
+      case ActivateTimerReqMsg.NAME =>
+        routeGenericMsg[ActivateTimerReqMsg](envelope, jsonNode)
+      case DeactivateTimerReqMsg.NAME =>
+        routeGenericMsg[DeactivateTimerReqMsg](envelope, jsonNode)
+      case StartTimerReqMsg.NAME =>
+        routeGenericMsg[StartTimerReqMsg](envelope, jsonNode)
+      case StopTimerReqMsg.NAME =>
+        routeGenericMsg[StopTimerReqMsg](envelope, jsonNode)
+      case SwitchTimerReqMsg.NAME =>
+        routeGenericMsg[SwitchTimerReqMsg](envelope, jsonNode)
+      case SetTimerReqMsg.NAME =>
+        routeGenericMsg[SetTimerReqMsg](envelope, jsonNode)
+      case ResetTimerReqMsg.NAME =>
+        routeGenericMsg[ResetTimerReqMsg](envelope, jsonNode)
+      case SetTrackReqMsg.NAME =>
+        routeGenericMsg[SetTrackReqMsg](envelope, jsonNode)
+      case TimerEndedPubMsg.NAME =>
+        routeGenericMsg[TimerEndedPubMsg](envelope, jsonNode)
+
+      // Messages from Graphql Middleware
+      case UserGraphqlConnectionEstablishedSysMsg.NAME =>
+        route[UserGraphqlConnectionEstablishedSysMsg](meetingManagerChannel, envelope, jsonNode)
+
+      case UserGraphqlConnectionClosedSysMsg.NAME =>
+        route[UserGraphqlConnectionClosedSysMsg](meetingManagerChannel, envelope, jsonNode)
+
+      case CheckGraphqlMiddlewareAlivePongSysMsg.NAME =>
+        route[CheckGraphqlMiddlewareAlivePongSysMsg](meetingManagerChannel, envelope, jsonNode)
 
       case _ =>
         log.error("Cannot route envelope name " + envelope.name)

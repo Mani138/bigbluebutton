@@ -1,8 +1,6 @@
 import deviceInfo from '/imports/utils/deviceInfo';
 import browserInfo from '/imports/utils/browserInfo';
 import { createVirtualBackgroundService } from '/imports/ui/services/virtual-background';
-import Meetings from '/imports/api/meetings';
-import Auth from '/imports/ui/services/auth';
 
 const BLUR_FILENAME = 'blur.jpg';
 const EFFECT_TYPES = {
@@ -12,9 +10,9 @@ const EFFECT_TYPES = {
 }
 
 // TODO I'm sure this is centralized somewhere; fetch it from "there" if possible
-const BASE_PATH = Meteor.settings.public.app.cdn
-  + Meteor.settings.public.app.basename
-  + Meteor.settings.public.app.instanceId;
+const BASE_PATH = window.meetingClientSettings.public.app.cdn
+  + window.meetingClientSettings.public.app.basename
+  + window.meetingClientSettings.public.app.instanceId;
 
 const MODELS = {
   model96: {
@@ -34,19 +32,19 @@ const MODELS = {
 };
 
 const {
-  enabled: VIRTUAL_BACKGROUND_ENABLED = true,
   thumbnailsPath: THUMBNAILS_PATH = '/resources/images/virtual-backgrounds/thumbnails/',
   fileNames: IMAGE_NAMES = ['home.jpg', 'coffeeshop.jpg', 'board.jpg'],
   storedOnBBB: IS_STORED_ON_BBB = true,
   imagesPath: IMAGES_PATH = '/resources/images/virtual-backgrounds/',
   showThumbnails: SHOW_THUMBNAILS = true,
-} = Meteor.settings.public.virtualBackgrounds;
+} = window.meetingClientSettings.public.virtualBackgrounds;
 
-const createVirtualBackgroundStream = (type, name, isVirtualBackground, stream) => {
+const createVirtualBackgroundStream = (type, name, isVirtualBackground, stream, customParams) => {
   const buildParams = {
     backgroundType: type,
     backgroundFilename: name,
     isVirtualBackground,
+    customParams,
   }
 
   return createVirtualBackgroundService(buildParams).then((service) => {
@@ -85,17 +83,6 @@ const getSessionVirtualBackgroundInfoWithDefault = (deviceId) => {
   };
 }
 
-const isVirtualBackgroundEnabled = () => {
-  const meeting = Meetings.findOne({ meetingId: Auth.meetingID },
-    { fields: { 'usersProp.virtualBackgroundsDisabled': 1 } });
-
-  if (meeting?.usersProp && meeting.usersProp.virtualBackgroundsDisabled === true) {
-    return false;
-  }
-
-  return VIRTUAL_BACKGROUND_ENABLED;
-}
-
 const isVirtualBackgroundSupported = () => {
   return !(deviceInfo.isIos || browserInfo.isSafari);
 }
@@ -117,7 +104,6 @@ export {
   setSessionVirtualBackgroundInfo,
   getSessionVirtualBackgroundInfo,
   getSessionVirtualBackgroundInfoWithDefault,
-  isVirtualBackgroundEnabled,
   isVirtualBackgroundSupported,
   createVirtualBackgroundStream,
   getVirtualBackgroundThumbnail,

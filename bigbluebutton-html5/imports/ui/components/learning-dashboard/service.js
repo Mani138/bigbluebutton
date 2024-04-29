@@ -2,7 +2,7 @@ import Users from '/imports/api/users';
 import Auth from '/imports/ui/services/auth';
 import Meetings from '/imports/api/meetings';
 
-const ROLE_MODERATOR = Meteor.settings.public.user.role_moderator;
+const ROLE_MODERATOR = window.meetingClientSettings.public.user.role_moderator;
 
 const isModerator = () => {
   const user = Users.findOne(
@@ -20,21 +20,13 @@ const isModerator = () => {
   return false;
 };
 
-const isLearningDashboardEnabled = () => (((
+const getLearningDashboardAccessToken = () => ((
   Meetings.findOne(
     { meetingId: Auth.meetingID },
     {
-      fields: { 'meetingProp.learningDashboardEnabled': 1 },
+      fields: { 'learningDashboard.learningDashboardAccessToken': 1 },
     },
-  ) || {}).meetingProp || {}).learningDashboardEnabled || false);
-
-const getLearningDashboardAccessToken = () => ((
-  Meetings.findOne(
-    { meetingId: Auth.meetingID, learningDashboardAccessToken: { $exists: true } },
-    {
-      fields: { learningDashboardAccessToken: 1 },
-    },
-  ) || {}).learningDashboardAccessToken || null);
+  ) || {})?.learningDashboard?.learningDashboardAccessToken || null);
 
 const setLearningDashboardCookie = () => {
   const learningDashboardAccessToken = getLearningDashboardAccessToken();
@@ -48,7 +40,7 @@ const setLearningDashboardCookie = () => {
 };
 
 const openLearningDashboardUrl = (lang) => {
-  const APP = Meteor.settings.public.app;
+  const APP = window.meetingClientSettings.public.app;
   if (getLearningDashboardAccessToken() && setLearningDashboardCookie()) {
     window.open(`${APP.learningDashboardBase}/?meeting=${Auth.meetingID}&lang=${lang}`, '_blank');
   } else {
@@ -58,7 +50,6 @@ const openLearningDashboardUrl = (lang) => {
 
 export default {
   isModerator,
-  isLearningDashboardEnabled,
   getLearningDashboardAccessToken,
   setLearningDashboardCookie,
   openLearningDashboardUrl,

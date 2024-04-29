@@ -1,7 +1,7 @@
 import styled, { css, keyframes } from 'styled-components';
-import Icon from '/imports/ui/components/icon/component';
+import Icon from '/imports/ui/components/common/icon/component';
 import Dropzone from 'react-dropzone';
-import Button from '/imports/ui/components/button/component';
+import Button from '/imports/ui/components/common/button/component';
 import {
   fileLineWidth,
   iconPaddingMd,
@@ -21,11 +21,12 @@ import {
   itemActionsWidth,
   uploadIconSize,
   iconLineHeight,
+  mdPaddingX,
 } from '/imports/ui/stylesheets/styled-components/general';
 import {
   headingsFontWeight,
   fontSizeLarge,
-  modalTitleFw,
+  fontSizeLarger,
 } from '/imports/ui/stylesheets/styled-components/typography';
 import {
   colorGrayLight,
@@ -39,6 +40,8 @@ import {
   colorSuccess,
   colorGrayLightest,
   colorText,
+  colorBlueLight,
+  colorOffWhite,
 } from '/imports/ui/stylesheets/styled-components/palette';
 import { smallOnly } from '/imports/ui/stylesheets/styled-components/breakpoints';
 import { ScrollboxVertical } from '/imports/ui/stylesheets/styled-components/scrollable';
@@ -60,16 +63,9 @@ const UploadRow = styled.div`
 const FileLine = styled.div`
   display: flex;
   flex-direction: row;
-  width: ${fileLineWidth};
-`;
-
-const FileIcon = styled.span`
-  width: 1%;
+  align-items: center;
   padding-bottom: ${iconPaddingMd};
-  & > i {
-    position: relative;
-    top: ${borderSizeLarge};
-  }
+  width: ${fileLineWidth};
 `;
 
 const ToastFileName = styled.span`
@@ -77,31 +73,21 @@ const ToastFileName = styled.span`
   overflow: hidden;
   white-space: nowrap;
   height: 1.25rem !important;
-  margin-left: ${lgPaddingX};
-  top: ${borderSizeLarge};
+  margin-left: ${mdPaddingY};
   height: 1rem;
   width: auto;
-  position: relative;
   text-align: left;
   font-weight: ${headingsFontWeight};
 
   [dir="rtl"] & {
-    margin-right: ${lgPaddingX};
+    margin-right: ${mdPaddingY};
     margin-left: 0;
     text-align: right;
   }
 `;
 
 const StatusIcon = styled.span`
-  margin-left: auto;
-  [dir="rtl"] & {
-    margin-right: auto;
-    margin-left: 0;
-  }
-
   & > i {
-    position: relative;
-    top: 1px;
     height: ${statusIconSize};
     width: ${statusIconSize};
   }
@@ -162,9 +148,6 @@ const Table = styled.table`
         font-weight: bold;
         color: ${colorGrayDark};
       }
-
-      td {
-      }
     }
   }
 `;
@@ -219,6 +202,11 @@ const InnerToast = styled(ScrollboxVertical)`
   padding-right: 1.5rem;
   box-sizing: content-box;
   background: none;
+
+  [dir="rtl"] & {
+    padding-right: 0;
+    padding-left: 1.5rem;
+  }
 `;
 
 const TableItemIcon = styled.td`
@@ -311,10 +299,17 @@ const ItemAction = styled.div`
       padding: unset !important;
     }
   }
-`; 
+`;
 
 const RemoveButton = styled(Button)`
-  margin-left: ${smPaddingX};
+  [dir="ltr"] & {
+    margin-left: ${smPaddingX};
+  }
+
+  [dir="rtl"] & {
+    margin-right: ${smPaddingX};
+  }
+
   div > i {
     margin-top: .25rem;
   }
@@ -415,10 +410,7 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   border-bottom:${borderSize} solid ${colorGrayLighter};
   margin-bottom: 2rem;
-
-  h1 {
-    font-weight: ${modalTitleFw};
-  }
+  padding: ${mdPaddingX} 0;
 
   div {
     display: flex;
@@ -430,6 +422,7 @@ const ModalHeader = styled.div`
 const ActionWrapper = styled.div`
   display: flex;
   align-items: center;
+  margin: 0 0.25rem;
 `;
 
 const DismissButton = styled(Button)`
@@ -444,7 +437,7 @@ const ConfirmButton = styled(Button)`
 `;
 
 const ModalHint = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   color: ${colorText};
   font-weight: normal;
 `;
@@ -454,8 +447,12 @@ const ToastItemIcon = styled(Icon)`
   width: ${statusIconSize};
   height: ${statusIconSize};
   font-size: 117%;
-  bottom: ${borderSize};
   left: ${statusInfoHeight};
+
+  [dir="rtl"] & {
+    left: unset;
+    right: ${statusInfoHeight};
+  }
 
   ${({ done }) => done && `
     color: ${colorSuccess};
@@ -469,7 +466,7 @@ const ToastItemIcon = styled(Icon)`
     color: ${colorGrayLightest};
     border: 1px solid;
     border-radius: 50%;
-    border-right-color: ${colorGray};
+    border-right-color: ${({ color }) => color || colorGray};
     animation: ${rotate} 1s linear infinite;
   `}
 `;
@@ -492,7 +489,7 @@ const PresentationItem = styled.tr`
     background-color: rgba(0, 128, 129, 0.25);
   `}
 
-  ${({ converting }) => converting && `
+  ${({ uploadInProgress }) => uploadInProgress && `
     background-color: rgba(0, 128, 129, 0.25);
   `}
 
@@ -533,62 +530,101 @@ const TableItemActions = styled.td`
   `}
 `;
 
-const DownloadButton = styled(Button)`
-  margin-left: ${smPaddingX};
-  div > i {
-    margin-top: .25rem;
-  }
-
-  &,
-  & > i {
-    display: inline-block;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    font-size: 1.35rem;
-    color: ${colorGrayLight};
-    padding: 0;
-
-    ${({ animations }) => animations && `
-      transition: all .25s;
-    `}
-
-    :hover, :focus {
-      padding: unset !important;
-    }
-  }
-
-  background-color: transparent;
-  border: 0 !important;
-
-  & > i:focus,
-  & > i:hover {
-    color: ${colorDanger} !important;
-  }
-
-  &[aria-disabled="true"] {
-    cursor: not-allowed;
-    opacity: .5;
-    box-shadow: none;
-    pointer-events: none;
-  }
-
-  ${({ isDownloadable }) => isDownloadable && `
-    & > i {
-      color: ${colorSuccess};
-    }
-  `}
-`;
-
 const ExtraHint = styled.div`
   margin-top: 1rem;
   font-weight: bold;
 `;
 
+const ExternalUpload = styled.div`
+  background-color: ${colorOffWhite};
+  border-radius: ${borderRadius};
+  margin-top: 2rem;
+  padding: ${lgPaddingX};
+  color: ${colorText};
+  font-weight: normal;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
+
+  & p {
+    margin: 0;
+  }
+`;
+
+const ExternalUploadTitle = styled.h4`
+  font-size: 0.9rem;
+  margin: 0;
+`;
+
+const ExternalUploadButton = styled(Button)`
+  height: 2rem;
+  align-self: center;
+  margin-left: 2rem;
+`;
+
+const ExportHint = styled(ModalHint)`
+  margin: 2rem 0;
+`;
+
+const SetCurrentAction = styled.td`
+  width: 0;
+
+  &, & i {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.35rem;
+
+    [dir="ltr"] & {
+      padding-left: 0 !important;
+    }
+
+    [dir="rtl"] & {
+      padding-right: 0 !important;
+    }
+
+    ${({ animations }) => animations && `
+      transition: all .25s;
+    `}
+  }
+`;
+
+const Head = styled.tr`
+  color: ${colorText};
+
+  th {
+    padding: calc(${smPaddingY} * 2) calc(${smPaddingX} / 2);
+    white-space: nowrap;
+    text-align: left;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
+
+    &:first-child {
+      [dir="ltr"] & {
+        padding-left: 0;
+      }
+
+      [dir="rtl"] & {
+        padding-right: 0;
+      }
+    }
+  }
+`;
+
+const Title = styled.h1`
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: ${fontSizeLarger};
+  font-weight: ${headingsFontWeight};
+`;
+
 export default {
   UploadRow,
   FileLine,
-  FileIcon,
   ToastFileName,
   StatusIcon,
   StatusInfo,
@@ -622,6 +658,12 @@ export default {
   StatusInfoSpan,
   PresentationItem,
   TableItemActions,
-  DownloadButton,
   ExtraHint,
+  ExternalUpload,
+  ExternalUploadTitle,
+  ExternalUploadButton,
+  ExportHint,
+  SetCurrentAction,
+  Head,
+  Title,
 };

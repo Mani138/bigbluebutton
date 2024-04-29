@@ -15,7 +15,7 @@ import {
   borderSizeLarge,
 } from '/imports/ui/stylesheets/styled-components/general';
 import { fontSizeBase } from '/imports/ui/stylesheets/styled-components/typography';
-import Button from '/imports/ui/components/button/component';
+import Button from '/imports/ui/components/common/button/component';
 
 const ResultLeft = styled.td`
   padding: 0 .5rem 0 0;
@@ -172,6 +172,7 @@ const ButtonsActions = styled.div`
 
 const PublishButton = styled(Button)`
   width: 48%;
+  margin-bottom: ${smPaddingY};
   overflow-wrap: break-word;
   white-space: pre-wrap;
 `;

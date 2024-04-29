@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { defineMessages, injectIntl } from 'react-intl';
-import Icon from '/imports/ui/components/icon/component';
+import Icon from '/imports/ui/components/common/icon/component';
 import Styled from './styles';
 import { ACTIONS, PANELS } from '../../../layout/enums';
 
@@ -50,7 +50,11 @@ const UserPolls = ({
             tabIndex={0}
             data-test="pollMenuButton"
             onClick={handleClickTogglePoll}
-            onKeyPress={() => {}}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleClickTogglePoll();
+              }
+            }}
           >
             <Icon iconName="polling" />
             <span>{intl.formatMessage(intlMessages.pollLabel)}</span>

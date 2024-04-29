@@ -12,8 +12,8 @@ import {
 import {
   fontSizeLarger,
 } from '/imports/ui/stylesheets/styled-components/typography';
-import FullscreenButtonContainer from '../fullscreen-button/container';
-import ToastStyled from '/imports/ui/components/toast/styles';
+import FullscreenButtonContainer from '/imports/ui/components/common/fullscreen-button/container';
+import ToastStyled from '/imports/ui/components/common/toast/styles';
 
 const VisuallyHidden = styled.span`
   position: absolute;
@@ -160,6 +160,7 @@ const PresentationToolbar = styled.div`
   order: 2;
   position: absolute;
   bottom: 0;
+  z-index: 2;
 `;
 
 const ToastSeparator = styled(ToastStyled.Separator)``;

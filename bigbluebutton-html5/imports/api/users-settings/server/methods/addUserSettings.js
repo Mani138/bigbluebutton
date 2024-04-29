@@ -7,15 +7,13 @@ const oldParameters = {
   askForFeedbackOnLogout: 'bbb_ask_for_feedback_on_logout',
   autoJoin: 'bbb_auto_join_audio',
   autoShareWebcam: 'bbb_auto_share_webcam',
-  autoSwapLayout: 'bbb_auto_swap_layout',
   clientTitle: 'bbb_client_title',
   customStyle: 'bbb_custom_style',
   customStyleUrl: 'bbb_custom_style_url',
   displayBrandingArea: 'bbb_display_branding_area',
-  enableScreensharing: 'bbb_enable_screen_sharing',
   enableVideo: 'bbb_enable_video',
   forceListenOnly: 'bbb_force_listen_only',
-  hidePresentation: 'bbb_hide_presentation',
+  hidePresentationOnJoin: 'bbb_hide_presentation',
   listenOnlyMode: 'bbb_listen_only_mode',
   multiUserPenOnly: 'bbb_multi_user_pen_only',
   multiUserTools: 'bbb_multi_user_tools',
@@ -36,6 +34,9 @@ const currentParameters = [
   'bbb_listen_only_mode',
   'bbb_skip_check_audio',
   'bbb_skip_check_audio_on_first_join',
+  'bbb_fullaudio_bridge',
+  'bbb_transparent_listen_only',
+  'bbb_show_animations_default',
   // BRANDING
   'bbb_display_branding_area',
   // SHORTCUTS
@@ -43,7 +44,6 @@ const currentParameters = [
   // KURENTO
   'bbb_auto_share_webcam',
   'bbb_preferred_camera_profile',
-  'bbb_enable_screen_sharing',
   'bbb_enable_video',
   'bbb_record_video',
   'bbb_skip_video_preview',
@@ -59,12 +59,14 @@ const currentParameters = [
   'bbb_custom_style',
   'bbb_custom_style_url',
   // LAYOUT
-  'bbb_auto_swap_layout',
-  'bbb_hide_presentation',
+  'bbb_hide_presentation_on_join',
   'bbb_show_participants_on_login',
   'bbb_show_public_chat_on_login',
   'bbb_hide_actions_bar',
   'bbb_hide_nav_bar',
+  'bbb_change_layout',
+  'bbb_direct_leave_button',
+  'bbb_default_layout',
 ];
 
 function valueParser(val) {

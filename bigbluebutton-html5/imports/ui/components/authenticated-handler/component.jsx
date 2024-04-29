@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { Session } from 'meteor/session';
 import logger from '/imports/startup/client/logger';
 import Auth from '/imports/ui/services/auth';
-import LoadingScreen from '/imports/ui/components/loading-screen/component';
+import LoadingScreen from '/imports/ui/components/common/loading-screen/component';
 
 const STATUS_CONNECTING = 'connecting';
 
@@ -38,12 +38,10 @@ class AuthenticatedHandler extends Component {
     if (Auth.loggedIn) {
       callback();
     }
-
     AuthenticatedHandler.addReconnectObservable();
 
     const setReason = (reason) => {
       const log = reason.error === 403 ? 'warn' : 'error';
-      
       logger[log]({
         logCode: 'authenticatedhandlercomponent_setreason',
         extraInfo: { reason },
@@ -70,6 +68,7 @@ class AuthenticatedHandler extends Component {
 
   componentDidMount() {
     if (Session.get('codeError')) {
+      console.log('Session.get(codeError)', Session.get('codeError'));
       this.setState({ authenticated: true });
     }
     AuthenticatedHandler.authenticatedRouteHandler((value, error) => {

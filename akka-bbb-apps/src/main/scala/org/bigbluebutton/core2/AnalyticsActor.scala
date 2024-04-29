@@ -1,6 +1,6 @@
 package org.bigbluebutton.core2
 
-import akka.actor.{ Actor, ActorLogging, Props }
+import org.apache.pekko.actor.{ Actor, ActorLogging, Props }
 import org.bigbluebutton.common2.msgs._
 import org.bigbluebutton.common2.util.JsonUtil
 object AnalyticsActor {
@@ -40,7 +40,6 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
       case m: GetRunningMeetingsReqMsg                       => logMessage(msg)
 
       case m: RegisterUserReqMsg                             => logMessage(msg)
-      case m: RegisteredUserJoinTimeoutMsg                   => logMessage(msg)
       case m: UserRegisteredRespMsg                          => logMessage(msg)
       case m: DisconnectAllClientsSysMsg                     => logMessage(msg)
       case m: DisconnectClientSysMsg                         => logMessage(msg)
@@ -54,18 +53,22 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
       case m: UserLeftMeetingEvtMsg                          => logMessage(msg)
       case m: PresenterUnassignedEvtMsg                      => logMessage(msg)
       case m: PresenterAssignedEvtMsg                        => logMessage(msg)
-      case m: UserEjectedFromMeetingEvtMsg                   => logMessage(msg)
       case m: EjectUserFromVoiceConfSysMsg                   => logMessage(msg)
       case m: CreateBreakoutRoomSysCmdMsg                    => logMessage(msg)
       case m: RequestBreakoutJoinURLReqMsg                   => logMessage(msg)
       case m: EndAllBreakoutRoomsMsg                         => logMessage(msg)
       case m: TransferUserToMeetingRequestMsg                => logMessage(msg)
-      case m: ExtendBreakoutRoomsTimeReqMsg                  => logMessage(msg)
+      case m: UpdateBreakoutRoomsTimeReqMsg                  => logMessage(msg)
+      case m: SendMessageToAllBreakoutRoomsReqMsg            => logMessage(msg)
       case m: UserLeftVoiceConfToClientEvtMsg                => logMessage(msg)
       case m: UserLeftVoiceConfEvtMsg                        => logMessage(msg)
       case m: RecordingStartedVoiceConfEvtMsg                => logMessage(msg)
       case m: MuteUserCmdMsg                                 => logMessage(msg)
       case m: MuteUserInVoiceConfSysMsg                      => logMessage(msg)
+      case m: DeafUserInVoiceConfSysMsg                      => logMessage(msg)
+      case m: HoldUserInVoiceConfSysMsg                      => logMessage(msg)
+      case m: PlaySoundInVoiceConfSysMsg                     => logMessage(msg)
+      case m: StopSoundInVoiceConfSysMsg                     => logMessage(msg)
       case m: MuteAllExceptPresentersCmdMsg                  => logMessage(msg)
       case m: EjectUserFromVoiceCmdMsg                       => logMessage(msg)
       case m: MuteMeetingCmdMsg                              => logMessage(msg)
@@ -74,12 +77,11 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
       case m: UserDisconnectedFromGlobalAudioMsg             => logMessage(msg)
       case m: AssignPresenterReqMsg                          => logMessage(msg)
       case m: ChangeUserPinStateReqMsg                       => logMessage(msg)
-      case m: ScreenshareStartedVoiceConfEvtMsg              => logMessage(msg)
-      case m: ScreenshareStoppedVoiceConfEvtMsg              => logMessage(msg)
+      case m: ChangeUserMobileFlagReqMsg                     => logMessage(msg)
+      case m: UserConnectionAliveReqMsg                      => logMessage(msg)
+      case m: UserConnectionUpdateRttReqMsg                  => logMessage(msg)
       case m: ScreenshareRtmpBroadcastStartedVoiceConfEvtMsg => logMessage(msg)
       case m: ScreenshareRtmpBroadcastStoppedVoiceConfEvtMsg => logMessage(msg)
-      case m: ScreenshareStartRtmpBroadcastVoiceConfMsg      => logMessage(msg)
-      case m: ScreenshareStopRtmpBroadcastVoiceConfMsg       => logMessage(msg)
       case m: ScreenshareRtmpBroadcastStartedEvtMsg          => logMessage(msg)
       case m: ScreenshareRtmpBroadcastStoppedEvtMsg          => logMessage(msg)
       case m: StartRecordingVoiceConfSysMsg                  => logMessage(msg)
@@ -102,6 +104,10 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
         logMessage(msg)
       case m: VoiceConfCallStateEvtMsg => logMessage(msg)
       case m: VoiceCallStateEvtMsg => logMessage(msg)
+      case m: HoldChannelInVoiceConfSysMsg => logMessage(msg)
+      case m: ChannelHoldChangedVoiceConfEvtMsg => logMessage(msg)
+      case m: ToggleListenOnlyModeSysMsg => logMessage(msg)
+      case m: ListenOnlyModeToggledInSfuEvtMsg => logMessage(msg)
 
       // Breakout
       case m: BreakoutRoomEndedEvtMsg => logMessage(msg)
@@ -115,6 +121,10 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
       case m: SetPresentationDownloadableEvtMsg => logMessage(msg)
       //case m: PresentationPageConvertedSysMsg => logMessage(msg)
       //case m: PresentationPageConvertedEventMsg => logMessage(msg)
+      // case m: StoreAnnotationsInRedisSysMsg => logMessage(msg)
+      // case m: StoreExportJobInRedisSysMsg => logMessage(msg)
+      case m: MakePresentationDownloadReqMsg => logMessage(msg)
+      case m: NewPresFileAvailableMsg => logMessage(msg)
       case m: PresentationPageConversionStartedSysMsg => logMessage(msg)
       case m: PresentationConversionEndedSysMsg => logMessage(msg)
       case m: PresentationConversionRequestReceivedSysMsg => logMessage(msg)
@@ -197,6 +207,7 @@ class AnalyticsActor(val includeChat: Boolean) extends Actor with ActorLogging {
       case m: PadUpdatedEvtMsg => logMessage(msg)
       case m: PadUpdatePubMsg => logMessage(msg)
       case m: PadUpdateCmdMsg => logMessage(msg)
+      case m: PadCapturePubMsg => logMessage(msg)
 
       case _ => // ignore message
     }

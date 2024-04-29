@@ -1,9 +1,8 @@
 import React, { PureComponent } from 'react';
 import { defineMessages, injectIntl } from 'react-intl';
-import { withModalMounter } from '/imports/ui/components/modal/service';
 import PropTypes from 'prop-types';
 import Service from '/imports/ui/components/captions/service';
-import LocalesDropdown from '/imports/ui/components/locales-dropdown/component';
+import LocalesDropdown from '/imports/ui/components/common/locales-dropdown/component';
 import Styled from './styles';
 import { PANELS, ACTIONS } from '../../layout/enums';
 
@@ -44,7 +43,6 @@ const intlMessages = defineMessages({
 
 const propTypes = {
   availableLocales: PropTypes.arrayOf(PropTypes.object).isRequired,
-  closeModal: PropTypes.func.isRequired,
   intl: PropTypes.shape({
     formatMessage: PropTypes.func.isRequired,
   }).isRequired,
@@ -68,9 +66,9 @@ class WriterMenu extends PureComponent {
   }
 
   componentWillUnmount() {
-    const { closeModal } = this.props;
+    const { setIsOpen } = this.props;
 
-    closeModal();
+    setIsOpen(false);
   }
 
   handleChange(event) {
@@ -79,7 +77,7 @@ class WriterMenu extends PureComponent {
 
   handleStart() {
     const {
-      closeModal,
+      setIsOpen,
       layoutContextDispatch,
     } = this.props;
 
@@ -95,29 +93,34 @@ class WriterMenu extends PureComponent {
       value: PANELS.CAPTIONS,
     });
 
-    closeModal();
+    setIsOpen(false);
   }
 
   render() {
     const {
       intl,
       availableLocales,
-      closeModal,
+      isOpen,
+      onRequestClose,
+      priority,
+      setIsOpen
+
     } = this.props;
 
     const { locale } = this.state;
 
     return (
       <Styled.WriterMenuModal
-        onRequestClose={closeModal}
         hideBorder
         contentLabel={intl.formatMessage(intlMessages.title)}
+        title={intl.formatMessage(intlMessages.title)}
+        {...{
+          isOpen,
+          onRequestClose,
+          priority,
+          setIsOpen
+        }}
       >
-        <Styled.Header>
-          <Styled.Title>
-            {intl.formatMessage(intlMessages.title)}
-          </Styled.Title>
-        </Styled.Header>
         <Styled.Content>
           <span>
             {intl.formatMessage(intlMessages.subtitle)}
@@ -144,6 +147,7 @@ class WriterMenu extends PureComponent {
             aria-describedby="descriptionStart"
             onClick={this.handleStart}
             disabled={locale == null}
+            data-test="startWritingClosedCaptions"
           />
           <div id="descriptionStart" hidden>{intl.formatMessage(intlMessages.ariaStartDesc)}</div>
         </Styled.Content>
@@ -154,4 +158,4 @@ class WriterMenu extends PureComponent {
 
 WriterMenu.propTypes = propTypes;
 
-export default injectIntl(withModalMounter(WriterMenu));
+export default injectIntl(WriterMenu);

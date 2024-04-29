@@ -1,31 +1,27 @@
 import styled from 'styled-components';
-import Button from '/imports/ui/components/button/component';
+import Button from '/imports/ui/components/common/button/component';
 import {
+  jumboPaddingY,
   smPaddingX,
   smPaddingY,
   lgPaddingX,
   borderRadius,
-  mdPaddingY,
   borderSize,
-  borderSizeLarge,
   pollInputHeight,
   pollSmMargin,
   pollMdMargin,
-  pollHeaderOffset,
 } from '/imports/ui/stylesheets/styled-components/general';
 import {
   colorText,
   colorBlueLight,
-  colorGray,
   colorGrayLight,
   colorGrayLighter,
   colorGrayLightest,
   colorDanger,
+  colorWarning,
   colorHeading,
   colorPrimary,
   colorGrayDark,
-  colorWhite,
-  pollBlue,
 } from '/imports/ui/stylesheets/styled-components/palette';
 import { fontSizeBase, fontSizeSmall } from '/imports/ui/stylesheets/styled-components/typography';
 
@@ -168,17 +164,13 @@ const PollConfigButton = styled(Button)`
 
 const PollParagraph = styled.div`
   color: ${colorText};
+  margin-bottom: 0.9rem;
 `;
 
 const PollCheckbox = styled.div`
   display: inline-block;
   margin-right: ${pollSmMargin};
   margin-bottom: ${pollMdMargin};
-`;
-
-const InstructionsLabel = styled.label`
-  margin-bottom: ${lgPaddingX};
-  color: ${colorText};
 `;
 
 const AddItemButton = styled(Button)`
@@ -207,6 +199,18 @@ const Row = styled.div`
   justify-content: space-between;
   margin-top: 0.7rem;
   margin-bottom: 0.7rem;
+`;
+
+const Warning = styled.div`
+  color: ${colorWarning};
+  font-size: ${fontSizeSmall};
+`;
+
+const CustomInputRow = styled.div`
+  display: flex;
+  flex-flow: nowrap;
+  flex-grow: 1;
+  justify-content: space-between;
 `;
 
 const Col = styled.div`
@@ -253,125 +257,51 @@ const NoSlidePanelContainer = styled.div`
   text-align: center;
 `;
 
-const PollButton = styled(Button)`
-  margin-top: ${smPaddingY};
-  margin-bottom: ${smPaddingY};
-  background-color: ${colorWhite};
-  box-shadow: 0 0 0 1px ${colorGray};
-  color: ${colorGray};
-
-  & > span {
-    color: ${colorGray};
-  }
-
-  & > span:hover {
-    color: ${pollBlue};
-    opacity: 1;
-  }
-
-  &:active {
-    background-color: ${colorWhite};
-    box-shadow: 0 0 0 1px ${pollBlue};
-
-    & > span {
-      color: ${pollBlue};
-    }
-  }
-
-  &:focus {
-    background-color: ${colorWhite};
-    box-shadow: 0 0 0 1px ${pollBlue};
-
-    & > span {
-      color: ${pollBlue};
-    }
-  }
-
-  &:nth-child(even) {
-    margin-right: inherit;
-    margin-left: ${smPaddingY};
-
-    [dir="rtl"] & {
-      margin-right: ${smPaddingY};
-      margin-left: inherit;
-    }
-  }
-
-  &:nth-child(odd) {
-    margin-right: 1rem;
-    margin-left: inherit;
-
-    [dir="rtl"] & {
-      margin-right: inherit;
-      margin-left: ${smPaddingY};
-    }
-  }
-
-  &:hover {
-    box-shadow: 0 0 0 1px ${pollBlue};
-    background-color: ${colorWhite};
-    color: ${pollBlue};
-
-    & > span {
-      color: ${pollBlue};
-      opacity: 1;
-    }
-  }
-`;
+const PollButton = styled(Button)``;
 
 const DragAndDropPollContainer = styled.div`
   width: 200px !important;
   height: 200px !important;
 `;
 
-const Header = styled.header`
-  position: relative;
-  top: ${pollHeaderOffset};
+const Question = styled.div`
+  margin-bottom: ${lgPaddingX};
+`;
+
+const OptionWrapper = styled.div`
   display: flex;
-  flex-direction: row;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: ${mdPaddingY};
 `;
 
-const PollHideButton = styled(Button)`
-  position: relative;
-  background-color: ${colorWhite};
-  display: block;
-  margin: ${borderSizeLarge};
-  margin-bottom: ${borderSize};
-  padding-left: 0;
-  padding-right: inherit;
-
-  [dir="rtl"] & {
-    padding-left: inherit;
-    padding-right: 0;
-  }
-
-  > i {
-    color: ${colorGrayDark};
-    font-size: smaller;
-
-    [dir="rtl"] & {
-      -webkit-transform: scale(-1, 1);
-      -moz-transform: scale(-1, 1);
-      -ms-transform: scale(-1, 1);
-      -o-transform: scale(-1, 1);
-      transform: scale(-1, 1);
-    }
-  }
-
-  &:hover {
-    background-color: ${colorWhite};
-  }
+const ResponseArea = styled.div`
+  display: flex;
+  flex-flow: column wrap;
 `;
 
-const PollCloseButton = styled(Button)`
-  font-size: ${fontSizeBase};
-  position: relative;
-  & > i {
-    color: ${colorText};
-  }
+const CustomInputHeading = styled(SectionHeading)`
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-bottom: ${jumboPaddingY};
+`;
+
+const CustomInputHeadingCol = styled(Col)`
+  overflow: hidden;
+`;
+
+const CustomInputToggleCol = styled(Col)`
+  flex-shrink: 0;
+`;
+
+const AnonymousHeading = styled(CustomInputHeading)``;
+
+const AnonymousHeadingCol = styled(CustomInputHeadingCol)``;
+
+const AnonymousToggleCol = styled(CustomInputToggleCol)``;
+
+const AnonymousRow = styled(Row)`
+  flex-flow: nowrap;
+  width: 100%;
 `;
 
 export default {
@@ -387,7 +317,6 @@ export default {
   PollConfigButton,
   PollParagraph,
   PollCheckbox,
-  InstructionsLabel,
   AddItemButton,
   Row,
   Col,
@@ -396,7 +325,16 @@ export default {
   NoSlidePanelContainer,
   PollButton,
   DragAndDropPollContainer,
-  Header,
-  PollHideButton,
-  PollCloseButton,
+  Warning,
+  CustomInputRow,
+  Question,
+  OptionWrapper,
+  ResponseArea,
+  CustomInputHeading,
+  CustomInputHeadingCol,
+  CustomInputToggleCol,
+  AnonymousHeading,
+  AnonymousHeadingCol,
+  AnonymousToggleCol,
+  AnonymousRow,
 };

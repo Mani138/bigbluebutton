@@ -5,14 +5,25 @@ import VoiceUsers from '/imports/api/voice-users/';
 import Users from '/imports/api/users/';
 import VideoListItem from './component';
 import { layoutSelect, layoutDispatch } from '/imports/ui/components/layout/context';
+import Settings from '/imports/ui/services/settings';
+import useCurrentUser from '/imports/ui/core/hooks/useCurrentUser';
 
 const VideoListItemContainer = (props) => {
-  const { cameraId } = props;
+  const { cameraId, user } = props;
 
   const fullscreen = layoutSelect((i) => i.fullscreen);
   const { element } = fullscreen;
   const isFullscreenContext = (element === cameraId);
   const layoutContextDispatch = layoutDispatch();
+  const isRTL = layoutSelect((i) => i.isRTL);
+
+  const { data: currentUserData } = useCurrentUser((user) => ({
+    isModerator: user.isModerator,
+  }));
+
+  const amIModerator = currentUserData?.isModerator;
+
+  if (!user) return null;
 
   return (
     <VideoListItem
@@ -20,6 +31,8 @@ const VideoListItemContainer = (props) => {
       {...{
         isFullscreenContext,
         layoutContextDispatch,
+        isRTL,
+        amIModerator,
       }}
     />
   );
@@ -28,13 +41,21 @@ const VideoListItemContainer = (props) => {
 export default withTracker((props) => {
   const {
     userId,
+    users,
+    stream,
   } = props;
 
   return {
-    voiceUser: VoiceUsers.findOne({ intId: userId },
-      { fields: { muted: 1, listenOnly: 1, talking: 1 } }),
-    user: Users.findOne({ intId: userId },
-      { fields: { pin: 1, userId: 1 } }),
+    settingsSelfViewDisable: Settings.application.selfViewDisable,
+    voiceUser: VoiceUsers.findOne({ userId },
+      {
+        fields: {
+          muted: 1, listenOnly: 1, talking: 1, joined: 1,
+        },
+      }),
+    user: (users?.find((u) => u.userId === userId) || {}),
+    disabledCams: Session.get('disabledCams') || [],
+    stream,
   };
 })(VideoListItemContainer);
 

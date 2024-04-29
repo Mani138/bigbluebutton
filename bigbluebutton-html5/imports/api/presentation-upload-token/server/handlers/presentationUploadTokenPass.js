@@ -2,22 +2,24 @@ import { check } from 'meteor/check';
 import Logger from '/imports/startup/server/logger';
 import PresentationUploadToken from '/imports/api/presentation-upload-token';
 
-export default function handlePresentationUploadTokenPass({ body, header }, meetingId) {
+export default async function handlePresentationUploadTokenPass({ body, header }, meetingId) {
   check(body, Object);
 
   const { userId } = header;
-  const { podId, authzToken, filename } = body;
+  const { podId, authzToken, filename, temporaryPresentationId } = body;
 
   check(userId, String);
   check(podId, String);
   check(authzToken, String);
   check(filename, String);
+  check(temporaryPresentationId, String)
 
   const selector = {
     meetingId,
     podId,
     userId,
     filename,
+    temporaryPresentationId,
   };
 
   const modifier = {
@@ -26,12 +28,13 @@ export default function handlePresentationUploadTokenPass({ body, header }, meet
     userId,
     filename,
     authzToken,
+    temporaryPresentationId,
     failed: false,
     used: false,
   };
 
   try {
-    const { insertedId } = PresentationUploadToken.upsert(selector, modifier);
+    const { insertedId } = await PresentationUploadToken.upsertAsync(selector, modifier);
 
     if (insertedId) {
       Logger.info(`Inserting presentationToken filename=${filename} podId=${podId} meeting=${meetingId}`);

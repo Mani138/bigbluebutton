@@ -1,13 +1,9 @@
 import Breakouts from '/imports/api/breakouts';
-import { MeetingTimeRemaining, Meetings } from '/imports/api/meetings';
-import { makeCall } from '/imports/ui/services/api';
+import { MeetingTimeRemaining } from '/imports/api/meetings';
 import Auth from '/imports/ui/services/auth';
-import Users from '/imports/api/users';
 import UserListService from '/imports/ui/components/user-list/service';
-import fp from 'lodash/fp';
 import UsersPersistentData from '/imports/api/users-persistent-data';
-
-const ROLE_MODERATOR = Meteor.settings.public.user.role_moderator;
+import { UploadingPresentations } from '/imports/api/presentations';
 
 const findBreakouts = () => {
   const BreakoutRooms = Breakouts.find(
@@ -36,17 +32,43 @@ const getBreakoutRoomUrl = (breakoutId) => {
   return breakoutUrlData;
 };
 
-const endAllBreakouts = () => {
-  makeCall('endAllBreakouts');
-};
-
-const requestJoinURL = (breakoutId) => {
-  makeCall('requestJoinURL', {
-    breakoutId,
+const upsertCapturedContent = (filename, temporaryPresentationId) => {
+  UploadingPresentations.upsert({
+    temporaryPresentationId,
+  }, {
+    $set: {
+      id: temporaryPresentationId,
+      temporaryPresentationId,
+      progress: 0,
+      filename,
+      lastModifiedUploader: false,
+      upload: {
+        done: false,
+        error: false,
+      },
+      uploadTimestamp: new Date(),
+      renderedInToast: false,
+    },
   });
 };
 
-const isExtendTimeHigherThanMeetingRemaining = (extendTimeInMinutes) => {
+const setCapturedContentUploading = () => {
+  const breakoutRooms = findBreakouts();
+  breakoutRooms.forEach((breakout) => {
+    const filename = breakout.shortName;
+    const temporaryPresentationId = breakout.breakoutId;
+
+    if (breakout.captureNotes) {
+      upsertCapturedContent(filename, `${temporaryPresentationId}-notes`);
+    }
+
+    if (breakout.captureSlides) {
+      upsertCapturedContent(filename, `${temporaryPresentationId}-slides`);
+    }
+  });
+};
+
+const isNewTimeHigherThanMeetingRemaining = (newTimeInMinutes) => {
   const meetingId = Auth.meetingID;
   const meetingTimeRemaining = MeetingTimeRemaining.findOne({ meetingId });
 
@@ -54,10 +76,7 @@ const isExtendTimeHigherThanMeetingRemaining = (extendTimeInMinutes) => {
     const { timeRemaining } = meetingTimeRemaining;
 
     if (timeRemaining) {
-      const breakoutRooms = findBreakouts();
-      const breakoutRoomsTimeRemaining = breakoutRooms[0].timeRemaining;
-      const newBreakoutRoomsRemainingTime =
-        breakoutRoomsTimeRemaining + extendTimeInMinutes * 60;
+      const newBreakoutRoomsRemainingTime = newTimeInMinutes * 60;
       //  Keep margin of 5 seconds for breakout rooms end before parent meeting
       const meetingTimeRemainingWithMargin = timeRemaining - 5;
 
@@ -70,73 +89,30 @@ const isExtendTimeHigherThanMeetingRemaining = (extendTimeInMinutes) => {
   return false;
 };
 
-const extendBreakoutsTime = (extendTimeInMinutes) => {
-  if (extendTimeInMinutes <= 0) return false;
-
-  makeCall('extendBreakoutsTime', {
-    extendTimeInMinutes,
-  });
-
-  return true;
-};
-
-const transferUserToMeeting = (fromMeetingId, toMeetingId) =>
-  makeCall('transferUser', fromMeetingId, toMeetingId);
-
-const transferToBreakout = (breakoutId) => {
-  const breakoutRooms = findBreakouts();
-  const breakoutRoom = breakoutRooms
-    .filter((breakout) => breakout.breakoutId === breakoutId)
-    .shift();
-  const breakoutMeeting = Meetings.findOne(
-    {
-      $and: [
-        { 'breakoutProps.sequence': breakoutRoom.sequence },
-        { 'breakoutProps.parentId': breakoutRoom.parentMeetingId },
-        { 'meetingProp.isBreakout': true },
-      ],
-    },
-    { fields: { meetingId: 1 } }
-  );
-  transferUserToMeeting(Auth.meetingID, breakoutMeeting.meetingId);
-};
-
-const amIModerator = () => {
-  const User = Users.findOne({ intId: Auth.userID }, { fields: { role: 1 } });
-  return User.role === ROLE_MODERATOR;
-};
-
-const checkInviteModerators = () => {
-  const BREAKOUTS_CONFIG = Meteor.settings.public.app.breakouts;
-
-  return !(
-    amIModerator() && !BREAKOUTS_CONFIG.sendInvitationToIncludedModerators
-  );
-};
-
 const getBreakoutByUserId = (userId) =>
   Breakouts.find(
     { [`url_${userId}`]: { $exists: true } },
-    { fields: { timeRemaining: 0 } }
+    { fields: { timeRemaining: 0 } },
   ).fetch();
 
-const getBreakoutByUrlData = (breakoutUrlData) =>
-  Breakouts.findOne({ [`url_${Auth.userID}`]: breakoutUrlData });
+const getWithBreakoutUrlData = (userId) => (breakoutsArray) => breakoutsArray
+  .map((breakout) => {
+    if (typeof breakout[`url_${userId}`] === 'object') {
+      return Object.assign(breakout, { breakoutUrlData: breakout[`url_${userId}`] });
+    }
+    return Object.assign(breakout, { breakoutUrlData: { insertedTime: 0 } });
+  })
+  .reduce((acc, urlDataArray) => acc.concat(urlDataArray), []);
 
-const getUrlFromBreakouts = (userId) => (breakoutsArray) =>
-  breakoutsArray
-    .map((breakout) => breakout[`url_${userId}`])
-    .reduce((acc, urlDataArray) => acc.concat(urlDataArray), []);
+const getLastBreakoutInserted = (breakoutURLArray) => breakoutURLArray.sort((a, b) => {
+  return a.breakoutUrlData.insertedTime - b.breakoutUrlData.insertedTime;
+}).pop();
 
-const getLastURLInserted = (breakoutURLArray) =>
-  breakoutURLArray.sort((a, b) => a.insertedTime - b.insertedTime).pop();
-
-const getBreakoutUrlByUserId = (userId) =>
-  fp.pipe(
-    getBreakoutByUserId,
-    getUrlFromBreakouts(userId),
-    getLastURLInserted
-  )(userId);
+const getLastBreakoutByUserId = (userId) => {
+  const breakout = getBreakoutByUserId(userId);
+  const url = getWithBreakoutUrlData(userId)(breakout);
+  return getLastBreakoutInserted(url);
+}
 
 const getBreakouts = () =>
   Breakouts.find({}, { sort: { sequence: 1 } }).fetch();
@@ -190,22 +166,15 @@ const isUserInBreakoutRoom = (joinedUsers) => {
 
 export default {
   findBreakouts,
-  endAllBreakouts,
-  extendBreakoutsTime,
-  isExtendTimeHigherThanMeetingRemaining,
-  requestJoinURL,
+  isNewTimeHigherThanMeetingRemaining,
   getBreakoutRoomUrl,
-  transferUserToMeeting,
-  transferToBreakout,
   meetingId: () => Auth.meetingID,
-  amIModerator,
-  getBreakoutUrlByUserId,
-  getBreakoutByUrlData,
+  getLastBreakoutByUserId,
   getBreakouts,
   getBreakoutsNoTime,
   getBreakoutUserIsIn,
   getBreakoutUserWasIn,
   sortUsersByName: UserListService.sortUsersByName,
   isUserInBreakoutRoom,
-  checkInviteModerators,
+  setCapturedContentUploading,
 };

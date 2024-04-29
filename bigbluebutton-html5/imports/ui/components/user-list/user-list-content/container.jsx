@@ -1,55 +1,32 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { withTracker } from 'meteor/react-meteor-data';
-import { Session } from 'meteor/session';
 import Auth from '/imports/ui/services/auth';
-import Storage from '/imports/ui/services/storage/session';
 import UserContent from './component';
-import GuestUsers from '/imports/api/guest-users';
-import { layoutSelectInput, layoutDispatch } from '../../layout/context';
-import { UsersContext } from '/imports/ui/components/components-data/users-context/context';
+import TimerService from '/imports/ui/components/timer/service';
 import WaitingUsersService from '/imports/ui/components/waiting-users/service';
-
-const CLOSED_CHAT_LIST_KEY = 'closedChatList';
-const STARTED_CHAT_LIST_KEY = 'startedChatList';
+import useCurrentUser from '/imports/ui/core/hooks/useCurrentUser';
 
 const UserContentContainer = (props) => {
-  const sidebarContent = layoutSelectInput((i) => i.sidebarContent);
-  const layoutContextDispatch = layoutDispatch();
-
-  const { sidebarContentPanel } = sidebarContent;
-
-  const usingUsersContext = useContext(UsersContext);
-  const { users } = usingUsersContext;
-  const currentUser = {
-    userId: Auth.userID,
-    presenter: users[Auth.meetingID][Auth.userID].presenter,
-    locked: users[Auth.meetingID][Auth.userID].locked,
-    role: users[Auth.meetingID][Auth.userID].role,
-  };
+  const { data: currentUser } = useCurrentUser((user) => ({
+    userId: user.userId,
+    presenter: user.presenter,
+    locked: user.locked,
+    role: user.role,
+  }));
   const { isGuestLobbyMessageEnabled } = WaitingUsersService;
 
   return (
     <UserContent
       {...{
-        layoutContextDispatch,
-        sidebarContentPanel,
         isGuestLobbyMessageEnabled,
+        currentUser,
         ...props,
       }}
-      currentUser={currentUser}
     />
   );
 };
 
 export default withTracker(() => ({
-  pollIsOpen: Session.equals('isPollOpen', true),
-  forcePollOpen: Session.equals('forcePollOpen', true),
-  currentClosedChats: Storage.getItem(CLOSED_CHAT_LIST_KEY) || [],
-  startedChats: Session.get(STARTED_CHAT_LIST_KEY) || [],
-  pendingUsers: GuestUsers.find({
-    meetingId: Auth.meetingID,
-    approved: false,
-    denied: false,
-  }).fetch(),
+  isTimerActive: TimerService.isActive(),
   isWaitingRoomEnabled: WaitingUsersService.isWaitingRoomEnabled(),
 }))(UserContentContainer);

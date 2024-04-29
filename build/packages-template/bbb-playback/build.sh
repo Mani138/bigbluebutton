@@ -33,8 +33,8 @@ npm run-script build
 mkdir -p $BBB_PLAYBACK_BASE
 cp -r ./build $BBB_PLAYBACK
 
-mkdir -p staging/etc/bigbluebutton/nginx
-cp playback.nginx staging/etc/bigbluebutton/nginx
+mkdir -p staging/usr/share/bigbluebutton/nginx
+cp playback.nginx staging/usr/share/bigbluebutton/nginx
 
 ##
 
@@ -46,6 +46,6 @@ cp playback.nginx staging/etc/bigbluebutton/nginx
 fpm -s dir -C ./staging -n $PACKAGE \
     --version $VERSION --epoch $EPOCH \
     --after-install after-install.sh \
-    --description "BigBlueButton playback" \
+    --description "Player for BigBlueButton presentation format recordings" \
     $DIRECTORIES \
     $OPTS

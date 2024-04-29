@@ -4,7 +4,6 @@ import Langmap from 'langmap';
 import fs from 'fs';
 import Users from '/imports/api/users';
 import './settings';
-import { lookup as lookupUserAgent } from 'useragent';
 import { check } from 'meteor/check';
 import Logger from './logger';
 import Redis from './redis';
@@ -13,6 +12,10 @@ import setMinBrowserVersions from './minBrowserVersion';
 import { PrometheusAgent, METRIC_NAMES } from './prom-metrics/index.js'
 
 let guestWaitHtml = '';
+
+const DEFAULT_LANGUAGE = Meteor.settings.public.app.defaultSettings.application.fallbackLocale;
+const CLIENT_VERSION = Meteor.settings.public.app.html5ClientBuild;
+const FALLBACK_ON_EMPTY_STRING = Meteor.settings.public.app.fallbackOnEmptyLocaleString;
 
 const env = Meteor.isDevelopment ? 'development' : 'production';
 
@@ -30,10 +33,25 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
-  Logger.error(`uncaughtException: ${err}`);
-  process.exit(1);
-});
+const formatMemoryUsage = (data) => `${Math.round(data / 1024 / 1024 * 100) / 100} MB`
+
+const serverHealth = () => {
+  const memoryData = process.memoryUsage();
+  const memoryUsage = {
+    rss: formatMemoryUsage(memoryData.rss),
+    heapTotal: formatMemoryUsage(memoryData.heapTotal),
+    heapUsed: formatMemoryUsage(memoryData.heapUsed),
+    external: formatMemoryUsage(memoryData.external),
+  }
+
+  const cpuData = process.cpuUsage();
+  const cpuUsage = {
+    system: formatMemoryUsage(cpuData.system),
+    user: formatMemoryUsage(cpuData.user),
+  }
+
+  Logger.info('Server health', {memoryUsage, cpuUsage});
+};
 
 Meteor.startup(() => {
   const APP_CONFIG = Meteor.settings.public.app;
@@ -41,6 +59,16 @@ Meteor.startup(() => {
   const instanceId = parseInt(process.env.INSTANCE_ID, 10) || 1;
 
   Logger.warn(`Started bbb-html5 process with instanceId=${instanceId}`);
+
+  const LOG_CONFIG = Meteor.settings.private.serverLog;
+  const { healthChecker } = LOG_CONFIG;
+  const { enable: enableHealthCheck, intervalMs: healthCheckInterval } = healthChecker;
+
+  if (enableHealthCheck) {
+    Meteor.setInterval(() => {
+      serverHealth();
+    }, healthCheckInterval);
+  }
 
   const { customHeartbeat } = APP_CONFIG;
 
@@ -144,7 +172,8 @@ Meteor.startup(() => {
   Meteor.onMessage(event => {
     const { method } = event;
     if (method) {
-      PrometheusAgent.increment(METRIC_NAMES.METEOR_METHODS, { methodName: method });
+      const methodName = method.includes('stream-cursor') ? 'stream-cursor' : method;
+      PrometheusAgent.increment(METRIC_NAMES.METEOR_METHODS, { methodName });
     }
   });
 
@@ -157,11 +186,9 @@ Meteor.startup(() => {
   CDN=${CDN_URL}\n`, APP_CONFIG);
 });
 
-
 const generateLocaleOptions = () => {
   try {
     Logger.warn('Calculating aggregateLocales (heavy)');
-
 
     // remove duplicated locales (always remove more generic if same name)
     const tempAggregateLocales = AVAILABLE_LOCALES
@@ -182,6 +209,18 @@ const generateLocaleOptions = () => {
       .reverse();
 
     Logger.warn(`Total locales: ${tempAggregateLocales.length}`, tempAggregateLocales);
+
+    const filePath = `${applicationRoot}/index.json`;
+    const jsContent = JSON.stringify(AVAILABLE_LOCALES, null, 2);
+
+    // Write JSON data to a file
+    fs.writeFile(filePath, jsContent, (err) => {
+      if (err) {
+        Logger.error('Error writing file:', err);
+      } else {
+        Logger.info(`JSON data has been written to ${filePath}`);
+      }
+    });
 
     return tempAggregateLocales;
   } catch (e) {
@@ -248,6 +287,8 @@ WebApp.connectHandlers.use('/locale', (req, res) => {
   res.end(JSON.stringify({
     normalizedLocale: localeFile,
     regionDefaultLocale: (regionDefault && regionDefault !== localeFile) ? regionDefault : '',
+    defaultLocale: DEFAULT_LANGUAGE,
+    fallbackOnEmptyLocaleString: FALLBACK_ON_EMPTY_STRING,
   }));
 });
 
@@ -301,20 +342,6 @@ WebApp.connectHandlers.use('/feedback', (req, res) => {
     };
     Logger.info('FEEDBACK LOG:', feedback);
   }));
-});
-
-WebApp.connectHandlers.use('/useragent', (req, res) => {
-  const userAgent = req.headers['user-agent'];
-  let response = 'No user agent found in header';
-  if (userAgent) {
-    response = lookupUserAgent(userAgent).toString();
-  }
-
-  Logger.info(`The requesting user agent is ${response}`);
-
-  // res.setHeader('Content-Type', 'application/json');
-  res.writeHead(200);
-  res.end(response);
 });
 
 WebApp.connectHandlers.use('/guestWait', (req, res) => {

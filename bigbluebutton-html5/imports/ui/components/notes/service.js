@@ -4,9 +4,10 @@ import PadsService from '/imports/ui/components/pads/service';
 import Auth from '/imports/ui/services/auth';
 import { Session } from 'meteor/session';
 import { ACTIONS, PANELS } from '/imports/ui/components/layout/enums';
+import { isSharedNotesEnabled } from '/imports/ui/services/features';
 
-const NOTES_CONFIG = Meteor.settings.public.notes;
-const ROLE_MODERATOR = Meteor.settings.public.user.role_moderator;
+const NOTES_CONFIG = window.meetingClientSettings.public.notes;
+const ROLE_MODERATOR = window.meetingClientSettings.public.user.role_moderator;
 
 const hasPermission = () => {
   const user = Users.findOne(
@@ -23,42 +24,25 @@ const hasPermission = () => {
 
   const meeting = Meetings.findOne(
     { meetingId: Auth.meetingID },
-    { fields: { 'lockSettingsProps.disableNotes': 1 } },
+    { fields: { 'lockSettings.disableNotes': 1 } },
   );
 
   if (user.locked) {
-    return !meeting.lockSettingsProps.disableNotes;
+    return !meeting.lockSettings.disableNotes;
   }
 
   return true;
 };
 
-const getLastRev = () => {
-  const lastRev = Session.get('notesLastRev');
-  if (!lastRev) return -1;
+const getLastRev = () => (Session.get('notesLastRev') || 0);
 
-  return lastRev;
-};
+const getRev = () => PadsService.getRev(NOTES_CONFIG.id);
 
-const setLastRev = () => {
-  const rev = PadsService.getRev(NOTES_CONFIG.id);
-  const lastRev = getLastRev();
+const markNotesAsRead = () => Session.set('notesLastRev', getRev());
 
-  if (rev !== 0 && rev > lastRev) {
-    Session.set('notesLastRev', rev);
-  }
-};
+const hasUnreadNotes = () => (getRev() > getLastRev());
 
-const hasUnreadNotes = (sidebarContentPanel) => {
-  if (sidebarContentPanel === PANELS.SHARED_NOTES) return false;
-
-  const rev = PadsService.getRev(NOTES_CONFIG.id);
-  const lastRev = getLastRev();
-
-  return rev !== 0 && rev > lastRev;
-};
-
-const isEnabled = () => NOTES_CONFIG.enabled;
+const isEnabled = () => isSharedNotesEnabled();
 
 const toggleNotesPanel = (sidebarContentPanel, layoutContextDispatch) => {
   layoutContextDispatch({
@@ -74,12 +58,22 @@ const toggleNotesPanel = (sidebarContentPanel, layoutContextDispatch) => {
   });
 };
 
+const pinSharedNotes = (pinned, stopWatching) => {
+  PadsService.pinPad(NOTES_CONFIG.id, pinned, stopWatching);
+};
+
+const isSharedNotesPinned = () => {
+  const pinnedPad = PadsService.getPinnedPad();
+  return pinnedPad?.externalId === NOTES_CONFIG.id;
+};
+
 export default {
   ID: NOTES_CONFIG.id,
   toggleNotesPanel,
   hasPermission,
   isEnabled,
-  setLastRev,
-  getLastRev,
+  markNotesAsRead,
   hasUnreadNotes,
+  isSharedNotesPinned,
+  pinSharedNotes,
 };

@@ -1,9 +1,15 @@
-import Pads, { PadsUpdates } from '/imports/api/pads';
+import { throttle } from 'radash';
+import Pads, { PadsSessions, PadsUpdates } from '/imports/api/pads';
 import { makeCall } from '/imports/ui/services/api';
 import Auth from '/imports/ui/services/auth';
 import Settings from '/imports/ui/services/settings';
+import {
+  screenshareHasEnded,
+  isScreenBroadcasting,
+} from '/imports/ui/components/screenshare/service';
 
-const PADS_CONFIG = Meteor.settings.public.pads;
+const PADS_CONFIG = window.meetingClientSettings.public.pads;
+const THROTTLE_TIMEOUT = 2000;
 
 const getLang = () => {
   const { locale } = Settings.application;
@@ -38,11 +44,17 @@ const hasPad = (externalId) => {
 
 const createSession = (externalId) => makeCall('createSession', externalId);
 
+const throttledCreateSession = throttle({ interval: THROTTLE_TIMEOUT }, createSession);
+
 const buildPadURL = (padId) => {
   if (padId) {
-    const params = getParams();
-    const url = Auth.authenticateURL(`${PADS_CONFIG.url}/p/${padId}?${params}`);
-    return url;
+    const padsSessions = PadsSessions.findOne({});
+    if (padsSessions && padsSessions.sessions) {
+      const params = getParams();
+      const sessionIds = padsSessions.sessions.map((session) => Object.values(session)).join(',');
+      const url = Auth.authenticateURL(`${PADS_CONFIG.url}/auth_session?padName=${padId}&sessionID=${sessionIds}&${params}`);
+      return url;
+    }
   }
 
   return null;
@@ -85,13 +97,43 @@ const getPadContent = (externalId) => {
   return '';
 };
 
+const getPinnedPad = () => {
+  const pad = Pads.findOne({
+    meetingId: Auth.meetingID,
+    pinned: true,
+  }, {
+    fields: {
+      externalId: 1,
+    },
+  });
+
+  return pad;
+};
+
+const pinPad = (externalId, pinned, stopWatching) => {
+  if (pinned) {
+    // Stop external video sharing if it's running.
+    if (typeof stopWatching === 'function') stopWatching();
+
+    // Stop screen sharing if it's running.
+    if (isScreenBroadcasting()) screenshareHasEnded();
+  }
+
+  makeCall('pinPad', externalId, pinned);
+};
+
+const throttledPinPad = throttle({ interval: 1000 }, pinPad);
+
 export default {
   getPadId,
   createGroup,
   hasPad,
-  createSession,
+  createSession: (externalId) => throttledCreateSession(externalId),
   buildPadURL,
   getRev,
   getPadTail,
   getPadContent,
+  getParams,
+  getPinnedPad,
+  pinPad: throttledPinPad,
 };

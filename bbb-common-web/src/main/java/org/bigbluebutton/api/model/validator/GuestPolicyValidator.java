@@ -22,9 +22,9 @@ public class GuestPolicyValidator implements ConstraintValidator<GuestPolicyCons
         }
 
         MeetingService meetingService = ServiceUtils.getMeetingService();
-        UserSession userSession = meetingService.getUserSessionWithAuthToken(sessionToken);
+        UserSession userSession = meetingService.getUserSessionWithSessionToken(sessionToken);
 
-        if(userSession == null || userSession.guestStatus.equals(GuestPolicy.DENY)) {
+        if(userSession == null || !userSession.guestStatus.equals(GuestPolicy.ALLOW)) {
             return false;
         }
 

@@ -2,7 +2,7 @@ import { check } from 'meteor/check';
 import { MeetingTimeRemaining } from '/imports/api/meetings';
 import Logger from '/imports/startup/server/logger';
 
-export default function handleTimeRemainingUpdate({ body }, meetingId) {
+export default async function handleTimeRemainingUpdate({ body }, meetingId) {
   check(meetingId, String);
 
   check(body, {
@@ -21,7 +21,7 @@ export default function handleTimeRemainingUpdate({ body }, meetingId) {
   };
 
   try {
-    MeetingTimeRemaining.upsert(selector, modifier);
+    await MeetingTimeRemaining.upsertAsync(selector, modifier);
   } catch (err) {
     Logger.error(`Changing recording time: ${err}`);
   }

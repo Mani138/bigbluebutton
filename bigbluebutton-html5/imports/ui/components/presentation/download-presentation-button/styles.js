@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import Button from '/imports/ui/components/button/component';
+import Button from '/imports/ui/components/common/button/component';
 import {
   colorWhite,
   colorBlack,
@@ -38,7 +38,7 @@ const ButtonWrapper = styled.div`
   background-color: ${colorTransparent};
   cursor: pointer;
   border: 0;
-  z-index: 2;
+  z-index: 999;
   margin: 2px;
   bottom: 0;
 
