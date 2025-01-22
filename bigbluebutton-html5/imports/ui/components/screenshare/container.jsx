@@ -1,23 +1,32 @@
-import React from 'react';
-import { withTracker } from 'meteor/react-meteor-data';
-import { useMutation } from '@apollo/client';
+import React, {
+  useEffect, useContext, useCallback, useState,
+} from 'react';
+import PropTypes from 'prop-types';
+import { useMutation, useReactiveVar } from '@apollo/client';
+import { defineMessages } from 'react-intl';
 import {
   getSharingContentType,
-  getBroadcastContentType,
-  isScreenGloballyBroadcasting,
-  isCameraAsContentGloballyBroadcasting,
-  isScreenBroadcasting,
-  isCameraAsContentBroadcasting,
-  shouldEnableVolumeControl,
+  useIsScreenGloballyBroadcasting,
+  useIsCameraAsContentGloballyBroadcasting,
+  useShouldEnableVolumeControl,
+  useIsScreenBroadcasting,
+  useIsCameraAsContentBroadcasting,
+  useScreenshareHasAudio,
+  useScreenshareStreamId,
+  useBroadcastContentType,
+  setBridge,
 } from './service';
+import useMeeting from '/imports/ui/core/hooks/useMeeting';
+import { PluginsContext } from '/imports/ui/components/components-data/plugin-context/context';
 import ScreenshareComponent from './component';
 import { layoutSelect, layoutSelectOutput, layoutDispatch } from '../layout/context';
 import getFromUserSettings from '/imports/ui/services/users-settings';
-import AudioService from '/imports/ui/components/audio/service';
-import MediaService from '/imports/ui/components/media/service';
-import { defineMessages } from 'react-intl';
-import NotesService from '/imports/ui/components/notes/service';
 import { EXTERNAL_VIDEO_STOP } from '../external-video-player/mutations';
+import { PINNED_PAD_SUBSCRIPTION } from '../notes/queries';
+import useDeduplicatedSubscription from '../../core/hooks/useDeduplicatedSubscription';
+import AudioManager from '/imports/ui/services/audio-manager';
+import useCurrentUser from '/imports/ui/core/hooks/useCurrentUser';
+import { PIN_NOTES } from '../notes/mutations';
 
 const screenshareIntlMessages = defineMessages({
   // SCREENSHARE
@@ -51,7 +60,7 @@ const screenshareIntlMessages = defineMessages({
   endedDueToDataSaving: {
     id: 'app.media.screenshare.endDueToDataSaving',
     description: 'toast to show when a screenshare has ended by changing data savings option',
-  }
+  },
 });
 
 const cameraAsContentIntlMessages = defineMessages({
@@ -90,69 +99,119 @@ const cameraAsContentIntlMessages = defineMessages({
 });
 
 const ScreenshareContainer = (props) => {
+  const { shouldShowScreenshare } = props;
   const screenShare = layoutSelectOutput((i) => i.screenShare);
   const fullscreen = layoutSelect((i) => i.fullscreen);
   const layoutContextDispatch = layoutDispatch();
+  const { pluginsExtensibleAreasAggregatedState } = useContext(PluginsContext);
+  const { data: currentMeeting } = useMeeting((m) => ({
+    screenShareBridge: m.screenShareBridge,
+  }));
+  const { data: currentUserData } = useCurrentUser((u) => ({ presenter: u.presenter }));
+  const [bridgeIsReady, setBridgeIsReady] = useState(false);
+  const [stopExternalVideoShare] = useMutation(EXTERNAL_VIDEO_STOP);
+  const [pinSharedNotes] = useMutation(PIN_NOTES);
+  const unpinSharedNotes = useCallback(() => {
+    pinSharedNotes({ variables: { pinned: false } });
+  }, [pinSharedNotes]);
+  const { data: pinnedPadData } = useDeduplicatedSubscription(PINNED_PAD_SUBSCRIPTION);
 
   const { element } = fullscreen;
   const fullscreenElementId = 'Screenshare';
   const fullscreenContext = (element === fullscreenElementId);
-  const [stopExternalVideoShare] = useMutation(EXTERNAL_VIDEO_STOP);
 
-  const { isPresenter } = props;
+  useEffect(() => {
+    if (currentMeeting?.screenShareBridge) {
+      setBridge(currentMeeting.screenShareBridge);
+      setBridgeIsReady(true);
+    }
+  }, [currentMeeting?.screenShareBridge]);
+
+  const NOTES_CONFIG = window.meetingClientSettings.public.notes;
+  const LAYOUT_CONFIG = window.meetingClientSettings.public.layout;
+
+  const isSharedNotesPinned = !!pinnedPadData
+    && pinnedPadData.sharedNotes[0]?.sharedNotesExtId === NOTES_CONFIG.id;
+
+  const isPresenter = currentUserData?.presenter;
 
   const info = {
     screenshare: {
-      icon: "desktop",
+      icon: 'desktop',
       locales: screenshareIntlMessages,
       startPreviewSizeBig: false,
       showSwitchPreviewSizeButton: true,
     },
     camera: {
-      icon: "video",
+      icon: 'video',
       locales: cameraAsContentIntlMessages,
       startPreviewSizeBig: true,
       showSwitchPreviewSizeButton: false,
     },
   };
 
-  const getContentType = () => {
-    return isPresenter ? getSharingContentType() : getBroadcastContentType();
-  }
+  const broadcastContentType = useBroadcastContentType();
+  const getContentType = () => (isPresenter ? getSharingContentType() : broadcastContentType);
   const contentTypeInfo = info[getContentType()];
   const defaultInfo = info.camera;
-  const selectedInfo = contentTypeInfo ? contentTypeInfo : defaultInfo;
+  const selectedInfo = contentTypeInfo || defaultInfo;
+  const outputDeviceId = useReactiveVar(AudioManager._outputDeviceId.value);
+  const screenIsGloballyBroadcasting = useIsScreenGloballyBroadcasting();
+  const cameraAsContentIsGloballyBroadcasting = useIsCameraAsContentGloballyBroadcasting();
+  const enableVolumeControl = useShouldEnableVolumeControl();
+  const isScreenBroadcasting = useIsScreenBroadcasting();
+  const isCameraAsContentBroadcasting = useIsCameraAsContentBroadcasting();
+  const hasAudio = useScreenshareHasAudio();
+  const streamId = useScreenshareStreamId();
 
-  if (isScreenBroadcasting() || isCameraAsContentBroadcasting()) {
+  let pluginScreenshareHelperItems = [];
+  if (pluginsExtensibleAreasAggregatedState.screenshareHelperItems) {
+    pluginScreenshareHelperItems = [
+      ...pluginsExtensibleAreasAggregatedState.screenshareHelperItems,
+    ];
+  }
+
+  if ((isScreenBroadcasting || isCameraAsContentBroadcasting)
+    && currentUserData
+    && bridgeIsReady
+    && shouldShowScreenshare
+  ) {
     return (
       <ScreenshareComponent
         {
         ...{
+          pluginScreenshareHelperItems,
           layoutContextDispatch,
           ...props,
           ...screenShare,
           fullscreenContext,
           fullscreenElementId,
+          isSharedNotesPinned,
           stopExternalVideoShare,
+          unpinSharedNotes,
+          outputDeviceId,
+          enableVolumeControl,
+          hasAudio,
+          isGloballyBroadcasting: screenIsGloballyBroadcasting
+            || cameraAsContentIsGloballyBroadcasting,
+          hidePresentationOnJoin: getFromUserSettings(
+            'bbb_hide_presentation_on_join',
+            LAYOUT_CONFIG.hidePresentationOnJoin,
+          ),
           ...selectedInfo,
+          isPresenter,
+          streamId,
         }
         }
       />
     );
   }
+
   return null;
 };
 
-const LAYOUT_CONFIG = window.meetingClientSettings.public.layout;
+ScreenshareContainer.propTypes = {
+  shouldShowScreenshare: PropTypes.bool,
+};
 
-export default withTracker(() => {
-  return {
-    isGloballyBroadcasting: isScreenGloballyBroadcasting() || isCameraAsContentGloballyBroadcasting(),
-    toggleSwapLayout: MediaService.toggleSwapLayout,
-    hidePresentationOnJoin: getFromUserSettings('bbb_hide_presentation_on_join', LAYOUT_CONFIG.hidePresentationOnJoin),
-    enableVolumeControl: shouldEnableVolumeControl(),
-    outputDeviceId: AudioService.outputDeviceId(),
-    isSharedNotesPinned: MediaService.shouldShowSharedNotes(),
-    pinSharedNotes: NotesService.pinSharedNotes,
-  };
-})(ScreenshareContainer);
+export default ScreenshareContainer;

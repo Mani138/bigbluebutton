@@ -17,9 +17,9 @@ object RunningMeeting {
 
 class RunningMeeting(val props: DefaultProps, outGW: OutMessageGateway,
                      eventBus: InternalEventBus)(implicit val context: ActorContext) {
-
   private val externalVideoModel = new ExternalVideoModel()
   private val chatModel = new ChatModel()
+  private val plugins = PluginModel.createPluginModelFromJson(props.pluginProp)
   private val layouts = new Layouts()
   private val pads = new Pads()
   private val wbModel = new WhiteboardModel()
@@ -43,7 +43,7 @@ class RunningMeeting(val props: DefaultProps, outGW: OutMessageGateway,
   // easy to test.
   private val liveMeeting = new LiveMeeting(props, meetingStatux2x, deskshareModel, audioCaptions, timerModel,
     chatModel, externalVideoModel, layouts, pads, registeredUsers, polls2x, wbModel, presModel, captionModel,
-    webcams, voiceUsers, users2x, guestsWaiting, clientSettings)
+    webcams, voiceUsers, users2x, guestsWaiting, clientSettings, plugins)
 
   GuestsWaiting.setGuestPolicy(
     liveMeeting.props.meetingProp.intId,

@@ -1,12 +1,9 @@
 package org.bigbluebutton.core.db
-
-import org.bigbluebutton.core.models.{ VoiceUserState }
+import org.bigbluebutton.core.models.VoiceUserState
 import slick.jdbc.PostgresProfile.api._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success }
-
 case class UserVoiceDbModel(
+    meetingId:                 String,
     userId:                 String,
     voiceUserId:            String,
     callerName:             String,
@@ -25,9 +22,10 @@ case class UserVoiceDbModel(
 
 class UserVoiceDbTableDef(tag: Tag) extends Table[UserVoiceDbModel](tag, None, "user_voice") {
   override def * = (
-    userId, voiceUserId, callerName, callerNum, callingWith, joined, listenOnly,
+    meetingId, userId, voiceUserId, callerName, callerNum, callingWith, joined, listenOnly,
     muted, spoke, talking, floor, lastFloorTime, startTime, endTime
   ) <> (UserVoiceDbModel.tupled, UserVoiceDbModel.unapply)
+  val meetingId = column[String]("meetingId", O.PrimaryKey)
   val userId = column[String]("userId", O.PrimaryKey)
   val voiceUserId = column[String]("voiceUserId")
   val callerName = column[String]("callerName")
@@ -51,9 +49,10 @@ class UserVoiceDbTableDef(tag: Tag) extends Table[UserVoiceDbModel](tag, None, "
 
 object UserVoiceDAO {
   def insert(voiceUserState: VoiceUserState) = {
-    DatabaseConnection.db.run(
+    DatabaseConnection.enqueue(
       TableQuery[UserVoiceDbTableDef].insertOrUpdate(
         UserVoiceDbModel(
+          meetingId = voiceUserState.meetingId,
           userId = voiceUserState.intId,
           voiceUserId = voiceUserState.voiceUserId,
           callerName = voiceUserState.callerName,
@@ -70,24 +69,16 @@ object UserVoiceDAO {
           endTime = None
         )
       )
-    ).onComplete {
-        case Success(rowsAffected) => {
-          DatabaseConnection.logger.debug(s"$rowsAffected row(s) inserted on user_voice table!")
-        }
-        case Failure(e)            => DatabaseConnection.logger.debug(s"Error inserting voice: $e")
-      }
+    )
   }
 
   def update(voiceUserState: VoiceUserState) = {
-    DatabaseConnection.db.run(
+    DatabaseConnection.enqueue(
       TableQuery[UserVoiceDbTableDef]
         .filter(_.userId === voiceUserState.intId)
         .map(u => (u.listenOnly, u.muted, u.floor, u.lastFloorTime))
         .update((voiceUserState.listenOnly, voiceUserState.muted, voiceUserState.floor, voiceUserState.lastFloorTime))
-    ).onComplete {
-      case Success(rowsAffected) => DatabaseConnection.logger.debug(s"$rowsAffected row(s) updated on user_voice table!")
-      case Failure(e) => DatabaseConnection.logger.error(s"Error updating user_voice: $e")
-    }
+    )
   }
 
   def updateTalking(voiceUserState: VoiceUserState) = {
@@ -99,34 +90,21 @@ object UserVoiceDAO {
              "spoke" = true,
              "endTime" = null,
             "startTime" = (case when "talking" is false then $now else "startTime" end)
-            WHERE "userId" = ${voiceUserState.intId}"""
+            WHERE "meetingId" = ${voiceUserState.meetingId}
+            AND "userId" = ${voiceUserState.intId}"""
     } else {
       sqlu"""UPDATE user_voice SET
             "talking" = false,
             "startTime" = null,
             "endTime" = (case when "talking" is true then $now else "endTime" end)
-            WHERE "userId" = ${voiceUserState.intId}"""
+            WHERE "meetingId" = ${voiceUserState.meetingId}
+            AND "userId" = ${voiceUserState.intId}"""
     }
 
-    DatabaseConnection.db.run(updateSql).onComplete {
-      case Success(rowsAffected) => DatabaseConnection.logger.debug(s"$rowsAffected row(s) updated with talking: ${voiceUserState.talking}")
-      case Failure(e) => DatabaseConnection.logger.error(s"Error updating voice talking: $e")
-    }
+    DatabaseConnection.enqueue(updateSql)
   }
 
-  def delete(intId: String) = {
-    DatabaseConnection.db.run(
-      TableQuery[UserDbTableDef]
-        .filter(_.userId === intId)
-        .map(u => (u.loggedOut))
-        .update((true))
-    ).onComplete {
-      case Success(rowsAffected) => DatabaseConnection.logger.debug(s"$rowsAffected row(s) updated loggedOut=true on user table!")
-      case Failure(e) => DatabaseConnection.logger.error(s"Error updating loggedOut=true user: $e")
-    }
-  }
-
-  def deleteUserVoice(userId: String) = {
+  def deleteUserVoice(meetingId: String,userId: String) = {
     //Meteor sets this props instead of removing
     //    muted: false
     //    talking: false
@@ -134,16 +112,12 @@ object UserVoiceDAO {
     //    joined: false
     //    spoke: false
 
-    DatabaseConnection.db.run(
+    DatabaseConnection.enqueue(
       TableQuery[UserVoiceDbTableDef]
+        .filter(_.meetingId === meetingId)
         .filter(_.userId === userId)
         .map(u => (u.muted, u.talking, u.listenOnly, u.joined, u.spoke, u.startTime, u.endTime))
-        .update((false, false, false, false, false, None, None))
-    ).onComplete {
-      case Success(rowsAffected) => DatabaseConnection.logger.debug(s"Voice of user ${userId} deleted (joined=false)")
-      case Failure(e) => DatabaseConnection.logger.error(s"Error deleting voice user: $e")
-    }
+        .update((true, false, false, false, false, None, None))
+    )
   }
-
-
 }

@@ -7,6 +7,7 @@ export interface LockSettings {
   hasActiveLockSetting: boolean;
   hideUserList: boolean;
   hideViewersCursor: boolean;
+  hideViewersAnnotation: false,
   meetingId: boolean;
   webcamsOnlyForModerator: boolean;
   lockOnJoin: boolean;
@@ -20,8 +21,7 @@ export interface groups {
 
 export interface WelcomeSettings {
   welcomeMsg: string;
-  modOnlyMessage: string;
-  welcomeMsgTemplate: string;
+  welcomeMsgForModerators: string;
   meetingId: string;
 }
 
@@ -48,6 +48,7 @@ export interface UsersPolicies {
   allowModsToEjectCameras: boolean;
   allowModsToUnmuteUsers: boolean;
   authenticatedGuest: boolean;
+  allowPromoteGuestToModerator: boolean;
   guestPolicy: string;
   maxUserConcurrentAccesses: number;
   maxUsers: number;
@@ -91,6 +92,10 @@ export interface ExternalVideo {
   updatedAt: Date;
 }
 
+export interface Layout {
+  currentLayoutType: string;
+}
+
 export interface ComponentsFlags {
   hasCaption: boolean;
   hasBreakoutRoom: boolean;
@@ -98,6 +103,8 @@ export interface ComponentsFlags {
   hasPoll: boolean;
   hasScreenshare: boolean;
   hasTimer: boolean;
+  showRemainingTime: boolean;
+  hasCameraAsContent: boolean;
 }
 
 export interface Metadata {
@@ -108,13 +115,15 @@ export interface Metadata {
 export interface Meeting {
   createdTime: number;
   disabledFeatures: Array<string>;
-  duration: number;
+  durationInSeconds: number;
   extId: string;
-  html5InstanceId: string | null;
   isBreakout: boolean;
   learningDashboardAccessToken: string;
   maxPinnedCameras: number;
   meetingCameraCap: number;
+  cameraBridge: string;
+  screenShareBridge: string;
+  audioBridge: string;
   meetingId: string;
   name: string;
   notifyRecordingIsOn: boolean;
@@ -125,9 +134,11 @@ export interface Meeting {
   voiceSettings: VoiceSettings;
   breakoutPolicies: BreakoutPolicies;
   externalVideo: ExternalVideo;
+  layout: Layout;
   componentsFlags: ComponentsFlags;
   endWhenNoModerator: boolean;
   endWhenNoModeratorDelayInMinutes: number;
+  loginUrl: string | null;
   metadata: Array<Metadata>;
   groups: Array<groups>;
 }

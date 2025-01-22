@@ -1,3 +1,5 @@
+import type { TrackPublishOptions } from 'livekit-client';
+
 export interface MeetingClientSettings {
   public: Public
   private: Private
@@ -13,7 +15,6 @@ export interface Public {
   timer: Timer
   chat: Chat
   userReaction: UserReaction
-  userStatus: UserStatus
   notes: Notes
   layout: Layout
   pads: Pads
@@ -25,9 +26,11 @@ export interface Public {
   clientLog: ClientLog
   virtualBackgrounds: VirtualBackgrounds
 }
-
+export interface Locales {
+  locale: string
+  name: string
+}
 export interface App {
-  instanceId: string
   mobileFontSize: string
   desktopFontSize: string
   audioChatNotification: boolean
@@ -57,7 +60,6 @@ export interface App {
   askForConfirmationOnLeave: boolean
   wakeLock: WakeLock
   allowDefaultLogoutUrl: boolean
-  allowUserLookup: boolean
   dynamicGuestPolicy: boolean
   enableGuestLobbyMessage: boolean
   guestPolicyExtraAllowOptions: boolean
@@ -84,12 +86,11 @@ export interface App {
   customHeartbeat: boolean
   showAllAvailableLocales: boolean
   showAudioFilters: boolean
-  raiseHandActionButton: RaiseHandActionButton
   reactionsButton: ReactionsButton
   emojiRain: EmojiRain
   enableNetworkStats: boolean
   enableCopyNetworkStatsButton: boolean
-  userSettingsStorage: string
+  userSettingsStorage: 'local' | 'session'
   defaultSettings: DefaultSettings
   shortcuts: Shortcuts
   branding: Branding
@@ -98,6 +99,9 @@ export interface App {
   effectiveConnection: string[]
   fallbackOnEmptyLocaleString: boolean
   disableWebsocketFallback: boolean
+  maxMutationPayloadSize: number
+  enableApolloDevTools: boolean
+  terminateAndRetryConnection: number
 }
 
 export interface BbbTabletApp {
@@ -115,6 +119,7 @@ export interface WakeLock {
 }
 
 export interface AudioCaptions {
+  alwaysVisible: boolean
   enabled: boolean
   mobile: boolean
   provider: string
@@ -141,6 +146,7 @@ export interface Breakouts {
   captureSharedNotesByDefault: boolean
   sendInvitationToAssignedModeratorsByDefault: boolean
   breakoutRoomLimit: number
+  allowPresentationManagementInBreakouts: boolean
 }
 
 export interface RaiseHandActionButton {
@@ -159,10 +165,16 @@ export interface EmojiRain {
   emojiSize: number
 }
 
+export interface Transcription {
+  partialUtterances: boolean
+  minUtteranceLength: number
+}
+
 export interface DefaultSettings {
   application: Application
   audio: Audio
   dataSaving: DataSaving
+  transcription: Transcription
 }
 
 export interface Application {
@@ -181,6 +193,7 @@ export interface Application {
   wakeLock: boolean
   paginationEnabled: boolean
   whiteboardToolbarAutoHide: boolean
+  pushToTalkEnabled: boolean
   autoCloseReactionsBar: boolean
   darkTheme: boolean
   fallbackLocale: string
@@ -294,6 +307,7 @@ export interface Kurento {
   cameraQualityThresholds: CameraQualityThresholds
   pagination: Pagination
   paginationThresholds: PaginationThresholds
+  videoMediaServer?: string
 }
 
 export interface CameraWsOptions {
@@ -452,6 +466,11 @@ export interface Captions {
   font: Font
   lines: number
   time: number
+  locales: Locales[]
+  defaultPad: string
+  showButton: boolean
+  lineLimit: number
+  captionLimit: number
 }
 
 export interface Font {
@@ -505,10 +524,12 @@ export interface Chat {
   system_messages_keys: SystemMessagesKeys
   typingIndicator: TypingIndicator
   moderatorChatEmphasized: boolean
+  privateMessageReadFeedback: MessageReadFeedback
   autoConvertEmoji: boolean
   emojiPicker: EmojiPicker
   disableEmojis: string[]
   allowedElements: string[]
+  toolbar: string[]
 }
 
 export interface SystemMessagesKeys {
@@ -521,6 +542,10 @@ export interface SystemMessagesKeys {
 export interface TypingIndicator {
   enabled: boolean
   showNames: boolean
+}
+
+export interface MessageReadFeedback {
+  enabled: boolean
 }
 
 export interface EmojiPicker {
@@ -538,10 +563,6 @@ export interface Reaction {
   native: string
 }
 
-export interface UserStatus {
-  enabled: boolean
-}
-
 export interface Notes {
   enabled: boolean
   id: string
@@ -557,17 +578,11 @@ export interface Layout {
 
 export interface Pads {
   url: string
-  cookie: Cookie
-}
-
-export interface Cookie {
-  path: string
-  sameSite: string
-  secure: boolean
 }
 
 export interface Media {
   audio: Audio2
+  screenshare: Screenshare2,
   stunTurnServersFetchAddress: string
   cacheStunTurnServers: boolean
   fallbackStunServer: string
@@ -595,19 +610,39 @@ export interface Media {
   traceSip: boolean
   sdpSemantics: string
   localEchoTest: LocalEchoTest
-  showVolumeMeter: boolean
+  muteAudioOutputWhenAway: boolean
+  livekit: LiveKitSettings
+}
+
+export interface LiveKitCameraSettings {
+  publishOptions?: TrackPublishOptions
+}
+
+export interface LiveKitScreenShareSettings {
+  publishOptions?: TrackPublishOptions
+}
+
+export interface LiveKitAudioSettings {
+  publishOptions?: TrackPublishOptions
+  unpublishOnMute?: boolean
+}
+
+export interface LiveKitSettings {
+  url?: string
+  audio?: LiveKitAudioSettings
+  camera?: LiveKitCameraSettings
+  screenshare?: LiveKitScreenShareSettings
 }
 
 export interface Audio2 {
   defaultFullAudioBridge: string
   defaultListenOnlyBridge: string
-  bridges: Bridge[]
   retryThroughRelay: boolean
+  allowAudioJoinCancel: boolean
 }
 
-export interface Bridge {
-  name: string
-  path: string
+export interface Screenshare2 {
+  showButtonForNonPresenters: boolean
 }
 
 export interface LocalEchoTest {
@@ -629,7 +664,6 @@ export interface Stats {
   timeout: number
   log: boolean
   notification: Notification
-  jitter: number[]
   loss: number[]
   rtt: number[]
   level: string[]
@@ -682,7 +716,10 @@ export interface Whiteboard {
   pointerDiameter: number
   maxStickyNoteLength: number
   maxNumberOfAnnotations: number
+  maxNumberOfActiveUsers: number
   annotations: Annotations
+  allowInfiniteWhiteboard: boolean
+  allowInfiniteWhiteboardInBreakouts: boolean
   styles: Styles
   toolbar: Toolbar
 }
@@ -707,10 +744,6 @@ export interface Text {
 
 export interface Toolbar {
   multiUserPenOnly: boolean
-  colors: Color[]
-  thickness: Thickness[]
-  font_sizes: FontSize[]
-  tools: Tool[]
   presenterTools: string[]
   multiUserTools: string[]
 }
@@ -728,20 +761,9 @@ export interface FontSize {
   value: number
 }
 
-export interface Tool {
-  icon: string
-  value: string
-}
-
 export interface ClientLog {
-  server: Server
   console: Console
   external: External
-}
-
-export interface Server {
-  enabled: boolean
-  level: string
 }
 
 export interface Console {
@@ -772,8 +794,6 @@ export interface VirtualBackgrounds {
 export interface Private {
   analytics: Analytics
   app: App2
-  redis: Redis
-  serverLog: ServerLog
   minBrowserVersions: MinBrowserVersion[]
   prometheus: Prometheus
 }
@@ -789,19 +809,6 @@ export interface App2 {
   loadSlidesFromHttpAlways: boolean
 }
 
-export interface Redis {
-  host: string
-  port: string
-  timeout: number
-  password: string | null
-  debug: boolean
-  metrics: Metrics
-  channels: Channels
-  subscribeTo: string[]
-  async: string[]
-  ignored: string[]
-}
-
 export interface Metrics {
   queueMetrics: boolean
   metricsDumpIntervalMs: number
@@ -814,18 +821,6 @@ export interface Channels {
   toThirdParty: string
 }
 
-export interface ServerLog {
-  level: string
-  streamerLog: boolean
-  includeServerInfo: boolean
-  healthChecker: HealthChecker
-}
-
-export interface HealthChecker {
-  enable: boolean
-  intervalMs: number
-}
-
 export interface MinBrowserVersion {
   browser: string
   version: number | number[] | string
@@ -835,7 +830,6 @@ export interface Prometheus {
   enabled: boolean
   path: string
   collectDefaultMetrics: boolean
-  collectRedisMetrics: boolean
 }
 
 export default MeetingClientSettings;

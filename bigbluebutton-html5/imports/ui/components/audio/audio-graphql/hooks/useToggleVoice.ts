@@ -1,28 +1,20 @@
 import { useCallback } from 'react';
-import { useMutation, useSubscription } from '@apollo/client';
-import Auth from '/imports/ui/services/auth';
+import { useMutation } from '@apollo/client';
 import { USER_SET_MUTED } from '../mutations';
-import { USER_MUTED, UserMutedResponse } from '../queries';
+import logger from '/imports/startup/client/logger';
 
 const useToggleVoice = () => {
   const [userSetMuted] = useMutation(USER_SET_MUTED);
-  const { data: userMutedData } = useSubscription<UserMutedResponse>(USER_MUTED);
 
-  const toggleVoice = async (userId?: string | null, muted?: boolean | null) => {
-    let shouldMute = muted;
-    const userToMute = userId ?? Auth.userID;
-
-    if (muted === undefined || muted === null) {
-      const { user_voice } = userMutedData || {};
-      const userData = user_voice && user_voice.find((u) => u.userId === userToMute);
-      if (!userData) return;
-      shouldMute = !userData.muted;
+  const toggleVoice = async (userId: string, muted: boolean) => {
+    try {
+      await userSetMuted({ variables: { muted, userId } });
+    } catch (e) {
+      logger.error('Error on trying to toggle muted');
     }
-
-    userSetMuted({ variables: { muted: shouldMute, userId: userToMute } });
   };
 
-  return useCallback(toggleVoice, [userMutedData]);
+  return useCallback(toggleVoice, [userSetMuted]);
 };
 
 export default useToggleVoice;

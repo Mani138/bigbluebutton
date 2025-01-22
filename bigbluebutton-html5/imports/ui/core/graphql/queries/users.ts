@@ -4,15 +4,15 @@ export const USER_LIST_SUBSCRIPTION = gql`
 subscription UserListSubscription($offset: Int!, $limit: Int!) {
   user(limit:$limit, offset: $offset, 
                 order_by: [
+                  {presenter: desc},
                   {role: asc},
                   {raiseHandTime: asc_nulls_last},
-                  {awayTime: asc_nulls_last},
-                  {emojiTime: asc_nulls_last},
                   {isDialIn: desc},
                   {hasDrawPermissionOnCurrentPage: desc},
                   {nameSortable: asc},
+                  {registeredAt: asc},
                   {userId: asc}
-                ]) {     
+                ]) {
     isDialIn
     userId
     extId
@@ -23,13 +23,14 @@ subscription UserListSubscription($offset: Int!, $limit: Int!) {
     avatar
     away
     raiseHand
-    emoji
+    reactionEmoji
     avatar
     presenter
     pinned
     locked
     authed
     mobile
+    bot
     guest
     clientType
     disconnected
@@ -37,8 +38,6 @@ subscription UserListSubscription($offset: Int!, $limit: Int!) {
     voice {
       joined
       listenOnly
-      talking
-      muted
       voiceUserId
     }
     cameras {
@@ -55,14 +54,14 @@ subscription UserListSubscription($offset: Int!, $limit: Int!) {
       shortName
       currentlyInRoom
     }
-    reaction {
-      reactionEmoji
+    userLockSettings {
+      disablePublicChat
     }
   }
 }`;
 
 export const USER_AGGREGATE_COUNT_SUBSCRIPTION = gql`
-  subscription {
+  subscription UsersCount {
     user_aggregate {
       aggregate {
         count
@@ -71,26 +70,18 @@ export const USER_AGGREGATE_COUNT_SUBSCRIPTION = gql`
   }
 `;
 
-export const USERS_OVERVIEW = gql`
-subscription Users {
-  user {
-    userId
-    name
-    role
-  }
-}`;
-
 export const GET_USER_IDS = gql`
   query Users {
-    user {
+    user(where: { bot: { _eq: false } } ) {
       userId
     }
   }
 `;
 
-export default {
-  USER_LIST_SUBSCRIPTION,
-  USER_AGGREGATE_COUNT_SUBSCRIPTION,
-  USERS_OVERVIEW,
-  GET_USER_IDS,
-};
+export const GET_USER_NAMES = gql`
+  query Users {
+    user(where: { bot: { _eq: false } } ) {
+      name
+    }
+  }
+`;

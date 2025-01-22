@@ -2,8 +2,9 @@ package org.bigbluebutton.core.apps.users
 
 import org.bigbluebutton.common2.msgs.UserJoinMeetingReqMsg
 import org.bigbluebutton.core.apps.breakout.BreakoutHdlrHelpers
-import org.bigbluebutton.core.db.{ UserDAO, UserStateDAO }
+import org.bigbluebutton.core.db.{NotificationDAO, UserDAO, UserStateDAO}
 import org.bigbluebutton.core.domain.MeetingState2x
+import org.bigbluebutton.core.graphql.GraphqlMiddleware
 import org.bigbluebutton.core.models._
 import org.bigbluebutton.core.running._
 import org.bigbluebutton.core2.message.senders._
@@ -34,6 +35,7 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
       val validationResult = for {
         _ <- checkIfUserGuestStatusIsAllowed(user)
         _ <- checkIfUserIsBanned(user)
+        _ <- checkIfUserEjected(user)
         _ <- checkIfUserLoggedOut(user)
         _ <- validateMaxParticipants(user)
       } yield user
@@ -46,19 +48,21 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
   }
 
   private def handleSuccessfulUserJoin(msg: UserJoinMeetingReqMsg, regUser: RegisteredUser) = {
-    val newState = userJoinMeeting(outGW, msg.body.authToken, msg.body.clientType, liveMeeting, state)
+    val newState = userJoinMeeting(outGW, msg.body.authToken, msg.body.clientType, msg.body.clientIsMobile, liveMeeting, state)
     updateParentMeetingWithNewListOfUsers()
     notifyPreviousUsersWithSameExtId(regUser)
     clearCachedVoiceUser(regUser)
     clearExpiredUserState(regUser)
-    ForceUserGraphqlReconnection(regUser)
+    forceUserGraphqlReconnection(regUser)
+    updateGraphqlDatabase(regUser)
+    generateLivekitToken(regUser, liveMeeting)
 
     newState
   }
 
   private def handleFailedUserJoin(msg: UserJoinMeetingReqMsg, failReason: String, failReasonCode: String) = {
     log.info("Ignoring user {} attempt to join in meeting {}. Reason Code: {}, Reason Message: {}", msg.body.userId, msg.header.meetingId, failReasonCode, failReason)
-    UserDAO.updateJoinError(msg.body.userId, failReasonCode, failReason)
+    UserDAO.updateJoinError(msg.header.meetingId, msg.body.userId, failReasonCode, failReason)
     state
   }
 
@@ -77,11 +81,11 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
 
   private def validateMaxParticipants(regUser: RegisteredUser): Either[(String, String), Unit] = {
     val userHasJoinedAlready = RegisteredUsers.checkUserExtIdHasJoined(regUser.externId, liveMeeting.registeredUsers)
-    val maxParticipants = liveMeeting.props.usersProp.maxUsers - 1
+    val maxParticipants = liveMeeting.props.usersProp.maxUsers
 
     if (maxParticipants > 0 && //0 = no limit
       RegisteredUsers.numUniqueJoinedUsers(liveMeeting.registeredUsers) >= maxParticipants &&
-      !userHasJoinedAlready) {
+      !userHasJoinedAlready && !regUser.bot) {
       Left(("The maximum number of participants allowed for this meeting has been reached.", EjectReasonCode.MAX_PARTICIPANTS))
     } else {
       Right(())
@@ -99,6 +103,14 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
   private def checkIfUserIsBanned(user: RegisteredUser): Either[(String, String), Unit] = {
     if (user.banned) {
       Left(("Banned user rejoining", EjectReasonCode.BANNED_USER_REJOINING))
+    } else {
+      Right(())
+    }
+  }
+
+  private def checkIfUserEjected(user: RegisteredUser): Either[(String, String), Unit] = {
+    if (user.ejected) {
+      Left(("User had ejected", EjectReasonCode.EJECT_USER))
     } else {
       Right(())
     }
@@ -137,6 +149,27 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
       Vector(newUser.name)
     )
     outGW.send(notifyUserEvent)
+    NotificationDAO.insert(notifyUserEvent)
+  }
+
+  private def generateLivekitToken(regUser: RegisteredUser, liveMeeting: LiveMeeting) = {
+    if (isUsingLiveKit(liveMeeting)) {
+      val grant = buildLiveKitTokenGrant(
+        room = liveMeeting.props.meetingProp.intId,
+        canPublish = true,
+        canSubscribe = true,
+        )
+      val metadata = buildLiveKitParticipantMetadata(liveMeeting)
+
+      val generateLiveKitTokenReqMsg = MsgBuilder.buildGenerateLiveKitTokenReqMsg(
+        liveMeeting.props.meetingProp.intId,
+        regUser.id,
+        regUser.name,
+        grant,
+        metadata
+      )
+      outGW.send(generateLiveKitTokenReqMsg)
+    }
   }
 
   private def clearCachedVoiceUser(regUser: RegisteredUser) =
@@ -144,9 +177,16 @@ trait UserJoinMeetingReqMsgHdlr extends HandlerHelpers {
     VoiceUsers.recoverVoiceUser(liveMeeting.voiceUsers, regUser.id)
 
   private def clearExpiredUserState(regUser: RegisteredUser) =
-    UserStateDAO.updateExpired(regUser.id, false)
+    UserStateDAO.updateExpired(regUser.meetingId, regUser.id, expired = false)
 
-  private def ForceUserGraphqlReconnection(regUser: RegisteredUser) =
-    Sender.sendForceUserGraphqlReconnectionSysMsg(liveMeeting.props.meetingProp.intId, regUser.id, regUser.sessionToken, "user_joined", outGW)
+  private def forceUserGraphqlReconnection(regUser: RegisteredUser) = {
+    GraphqlMiddleware.requestGraphqlReconnection(regUser.sessionToken, "user_joined")
+  }
+
+  private def updateGraphqlDatabase(regUser: RegisteredUser) = {
+    if (!regUser.joined) {
+      RegisteredUsers.updateUserJoin(liveMeeting.registeredUsers, regUser, joined = true)
+    }
+  }
 
 }

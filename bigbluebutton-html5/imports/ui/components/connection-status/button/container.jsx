@@ -1,23 +1,23 @@
 import React from 'react';
-import { Meteor } from 'meteor/meteor';
-import { withTracker } from 'meteor/react-meteor-data';
-import { useSubscription } from '@apollo/client';
+import { useReactiveVar } from '@apollo/client';
 import ConnectionStatusButtonComponent from './component';
-import Service from '../service';
-import { CONNECTION_STATUS_REPORT_SUBSCRIPTION } from '../queries';
+import connectionStatus from '/imports/ui/core/graphql/singletons/connectionStatus';
+import { getWorstStatus } from '../service';
 
-const connectionStatusButtonContainer = (props) => {
-  const { data } = useSubscription(CONNECTION_STATUS_REPORT_SUBSCRIPTION);
+const ConnectionStatusButtonContainer = (props) => {
+  const connected = useReactiveVar(connectionStatus.getConnectedStatusVar());
+  const rttStatus = useReactiveVar(connectionStatus.getRttStatusVar());
+  const packetLossStatus = useReactiveVar(connectionStatus.getPacketLossStatusVar());
 
-  const connectionData = data ? Service.sortConnectionData(data.user_connectionStatusReport) : [];
+  const myCurrentStatus = getWorstStatus([rttStatus, packetLossStatus]);
 
-  return <ConnectionStatusButtonComponent connectionData={connectionData} {...props} />;
+  return (
+    <ConnectionStatusButtonComponent
+      myCurrentStatus={myCurrentStatus}
+      connected={connected}
+      {...props}
+    />
+  );
 };
 
-export default withTracker(() => {
-  const { connected } = Meteor.status();
-
-  return {
-    connected,
-  };
-})(connectionStatusButtonContainer);
+export default ConnectionStatusButtonContainer;

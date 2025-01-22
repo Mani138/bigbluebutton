@@ -18,47 +18,27 @@
 /* eslint no-unused-vars: 0 */
 
 import React, { useContext, useEffect } from 'react';
-import { Meteor } from 'meteor/meteor';
 import logger from '/imports/startup/client/logger';
 import '/imports/ui/services/mobile-app';
 import Base from '/imports/startup/client/base';
-import JoinHandler from '../imports/ui/components/join-handler/component';
-import AuthenticatedHandler from '/imports/ui/components/authenticated-handler/component';
-import Subscriptions from '/imports/ui/components/subscriptions/component';
-import IntlStartup from '/imports/startup/client/intl';
 import ContextProviders from '/imports/ui/components/context-providers/component';
-import UsersAdapter from '/imports/ui/components/components-data/users-context/adapter';
 import ConnectionManager from '/imports/ui/components/connection-manager/component';
-import { liveDataEventBrokerInitializer } from '/imports/ui/services/LiveDataEventBroker/LiveDataEventBroker';
 // The adapter import is "unused" as far as static code is concerned, but it
 // needs to here to override global prototypes. So: don't remove it - prlanzarin 25 Apr 2022
 import adapter from 'webrtc-adapter';
 
-import collectionMirrorInitializer from './collection-mirror-initializer';
 import { LoadingContext } from '/imports/ui/components/common/loading-screen/loading-screen-HOC/component';
 import IntlAdapter from '/imports/startup/client/intlAdapter';
-import PresenceAdapter from '/imports/ui/components/authenticated-handler/presence-adapter/component';
+import PresenceAdapter from '../imports/ui/components/presence-adapter/component';
 import CustomUsersSettings from '/imports/ui/components/join-handler/custom-users-settings/component';
-
-import('/imports/api/audio/client/bridge/bridge-whitelist').catch(() => {
-  // bridge loading
-});
-
-collectionMirrorInitializer();
-liveDataEventBrokerInitializer();
+import createUseSubscription from '/imports/ui/core/hooks/createUseSubscription';
+import PLUGIN_CONFIGURATION_QUERY from '/imports/ui/components/plugins-engine/query';
 
 // eslint-disable-next-line import/prefer-default-export
 const Startup = () => {
   const loadingContextInfo = useContext(LoadingContext);
   useEffect(() => {
-    const { disableWebsocketFallback } = window.meetingClientSettings.public.app;
-    loadingContextInfo.setLoading(false, '');
-    if (disableWebsocketFallback) {
-      Meteor.connection._stream._sockjsProtocolsWhitelist = function () { return ['websocket']; };
-
-      // Meteor.disconnect();
-      // Meteor.reconnect();
-    }
+    loadingContextInfo.setLoading(false);
   }, []);
   // Logs all uncaught exceptions to the client logger
   window.addEventListener('error', (e) => {
@@ -82,16 +62,16 @@ const Startup = () => {
     }, message);
   });
 
+  const { data: pluginConfig } = createUseSubscription(
+    PLUGIN_CONFIGURATION_QUERY,
+  )((obj) => obj);
   return (
     <ContextProviders>
       <PresenceAdapter>
-        <Subscriptions>
-          <IntlAdapter>
-            <Base />
-          </IntlAdapter>
-        </Subscriptions>
+        <IntlAdapter>
+          <Base pluginConfig={pluginConfig} />
+        </IntlAdapter>
       </PresenceAdapter>
-      <UsersAdapter />
     </ContextProviders>
   );
 };

@@ -61,6 +61,10 @@ class RedisRecorderActor(
     msg.core match {
       // Chat
       case m: GroupChatMessageBroadcastEvtMsg       => handleGroupChatMessageBroadcastEvtMsg(m)
+      case m: GroupChatMessageEditedEvtMsg          => handleGroupChatMessageEditedEvtMsg(m)
+      case m: GroupChatMessageDeletedEvtMsg         => handleGroupChatMessageDeletedEvtMsg(m)
+      case m: GroupChatMessageReactionSentEvtMsg    => handleGroupChatMessageReactionSentEvtMsg(m)
+      case m: GroupChatMessageReactionDeletedEvtMsg => handleGroupChatMessageReactionDeletedEvtMsg(m)
       case m: ClearPublicChatHistoryEvtMsg          => handleClearPublicChatHistoryEvtMsg(m)
 
       // Presentation
@@ -84,7 +88,6 @@ class RedisRecorderActor(
       case m: UserJoinedMeetingEvtMsg               => handleUserJoinedMeetingEvtMsg(m)
       case m: UserLeftMeetingEvtMsg                 => handleUserLeftMeetingEvtMsg(m)
       case m: PresenterAssignedEvtMsg               => handlePresenterAssignedEvtMsg(m)
-      case m: UserEmojiChangedEvtMsg                => handleUserEmojiChangedEvtMsg(m)
       case m: UserAwayChangedEvtMsg                 => handleUserAwayChangedEvtMsg(m)
       case m: UserRaiseHandChangedEvtMsg            => handleUserRaiseHandChangedEvtMsg(m)
       case m: UserReactionEmojiChangedEvtMsg        => handleUserReactionEmojiChangedEvtMsg(m)
@@ -109,11 +112,6 @@ class RedisRecorderActor(
       // Pads
       case m: PadCreatedRespMsg                     => handlePadCreatedRespMsg(m)
 
-      // Screenshare
-      case m: ScreenshareRtmpBroadcastStartedEvtMsg => handleScreenshareRtmpBroadcastStartedEvtMsg(m)
-      case m: ScreenshareRtmpBroadcastStoppedEvtMsg => handleScreenshareRtmpBroadcastStoppedEvtMsg(m)
-      //case m: DeskShareNotifyViewersRTMP  => handleDeskShareNotifyViewersRTMP(m)
-
       // AudioCaptions
       //case m: TranscriptUpdatedEvtMsg               => handleTranscriptUpdatedEvtMsg(m) // temporarily disabling due to issue https://github.com/bigbluebutton/bigbluebutton/issues/19701
 
@@ -121,7 +119,7 @@ class RedisRecorderActor(
       case m: RecordingStatusChangedEvtMsg          => handleRecordingStatusChangedEvtMsg(m)
       case m: RecordStatusResetSysMsg               => handleRecordStatusResetSysMsg(m)
       case m: WebcamsOnlyForModeratorChangedEvtMsg  => handleWebcamsOnlyForModeratorChangedEvtMsg(m)
-      case m: MeetingEndingEvtMsg                   => handleEndAndKickAllSysMsg(m)
+      case m: MeetingEndingEvtMsg                   => handleMeetingEndingEvtMsg(m)
       case m: MeetingCreatedEvtMsg                  => handleStarterConfigurations(m)
 
       // Recording
@@ -157,12 +155,59 @@ class RedisRecorderActor(
     if (msg.body.chatId == GroupChatApp.MAIN_PUBLIC_CHAT) {
       val ev = new PublicChatRecordEvent()
       ev.setMeetingId(msg.header.meetingId)
+      ev.setMessageId(msg.body.msg.id)
       ev.setSenderId(msg.body.msg.sender.id)
       ev.setMessage(msg.body.msg.message)
       ev.setSenderRole(msg.body.msg.sender.role)
+      ev.setReplyToMessageId(msg.body.msg.replyToMessageId)
 
       val isModerator = msg.body.msg.sender.role == "MODERATOR"
       ev.setChatEmphasizedText(msg.body.msg.chatEmphasizedText && isModerator)
+
+      record(msg.header.meetingId, ev.toMap.asJava)
+    }
+  }
+
+  private def handleGroupChatMessageEditedEvtMsg(msg: GroupChatMessageEditedEvtMsg) {
+    if (msg.body.chatId == GroupChatApp.MAIN_PUBLIC_CHAT) {
+      val ev = new EditPublicChatMessageRecordEvent()
+      ev.setMeetingId(msg.header.meetingId)
+      ev.setMessageId(msg.body.messageId)
+      ev.setMessage(msg.body.message)
+      record(msg.header.meetingId, ev.toMap.asJava)
+    }
+  }
+
+  private def handleGroupChatMessageDeletedEvtMsg(msg: GroupChatMessageDeletedEvtMsg) {
+    if (msg.body.chatId == GroupChatApp.MAIN_PUBLIC_CHAT) {
+      val ev = new DeletePublicChatMessageRecordEvent()
+      ev.setMeetingId(msg.header.meetingId)
+      ev.setMessageId(msg.body.messageId)
+      ev.setDeletedBy(msg.header.userId)
+
+      record(msg.header.meetingId, ev.toMap.asJava)
+    }
+  }
+
+  private def handleGroupChatMessageReactionSentEvtMsg(msg: GroupChatMessageReactionSentEvtMsg) {
+    if (msg.body.chatId == GroupChatApp.MAIN_PUBLIC_CHAT) {
+      val ev = new SendPublicChatMessageReactionRecordEvent()
+      ev.setMeetingId(msg.header.meetingId)
+      ev.setSenderId(msg.header.userId)
+      ev.setMessageId(msg.body.messageId)
+      ev.setReactionEmoji(msg.body.reactionEmoji)
+
+      record(msg.header.meetingId, ev.toMap.asJava)
+    }
+  }
+
+  private def handleGroupChatMessageReactionDeletedEvtMsg(msg: GroupChatMessageReactionDeletedEvtMsg) {
+    if (msg.body.chatId == GroupChatApp.MAIN_PUBLIC_CHAT) {
+      val ev = new DeletePublicChatMessageReactionRecordEvent()
+      ev.setMeetingId(msg.header.meetingId)
+      ev.setSenderId(msg.header.userId)
+      ev.setMessageId(msg.body.messageId)
+      ev.setReactionEmoji(msg.body.reactionEmoji)
 
       record(msg.header.meetingId, ev.toMap.asJava)
     }
@@ -297,8 +342,7 @@ class RedisRecorderActor(
   }
 
   private def handleSendWhiteboardAnnotationsEvtMsg(msg: SendWhiteboardAnnotationsEvtMsg) {
-    // filter poll annotations that are still not tldraw ready
-    msg.body.annotations.filter(!_.annotationInfo.contains("answers")).foreach(annotation => {
+    msg.body.annotations.foreach(annotation => {
       val ev = new AddTldrawShapeWhiteboardRecordEvent()
       ev.setMeetingId(msg.header.meetingId)
       ev.setPresentation(getPresentationId(annotation.wbId))
@@ -357,6 +401,7 @@ class RedisRecorderActor(
     ev.setExternalUserId(msg.body.extId)
     ev.setName(msg.body.name)
     ev.setRole(msg.body.role)
+    ev.setUserdata(msg.body.userMetadata)
 
     record(msg.header.meetingId, ev.toMap.asJava)
   }
@@ -377,9 +422,6 @@ class RedisRecorderActor(
     ev.setAssignedBy(msg.body.assignedBy)
 
     record(msg.header.meetingId, ev.toMap.asJava)
-  }
-  private def handleUserEmojiChangedEvtMsg(msg: UserEmojiChangedEvtMsg) {
-    handleUserStatusChange(msg.header.meetingId, msg.body.userId, "emojiStatus", msg.body.emoji)
   }
 
   private def handleUserAwayChangedEvtMsg(msg: UserAwayChangedEvtMsg) {
@@ -508,33 +550,6 @@ class RedisRecorderActor(
 
     record(msg.header.meetingId, ev.toMap.asJava)
   }
-
-  private def handleScreenshareRtmpBroadcastStartedEvtMsg(msg: ScreenshareRtmpBroadcastStartedEvtMsg) {
-    val ev = new DeskshareStartRtmpRecordEvent()
-    ev.setMeetingId(msg.header.meetingId)
-    ev.setStreamPath(msg.body.stream)
-
-    record(msg.header.meetingId, ev.toMap.asJava)
-  }
-
-  private def handleScreenshareRtmpBroadcastStoppedEvtMsg(msg: ScreenshareRtmpBroadcastStoppedEvtMsg) {
-    val ev = new DeskshareStopRtmpRecordEvent()
-    ev.setMeetingId(msg.header.meetingId)
-    ev.setStreamPath(msg.body.stream)
-
-    record(msg.header.meetingId, ev.toMap.asJava)
-  }
-
-  /*
-  private def handleDeskShareNotifyViewersRTMP(msg: DeskShareNotifyViewersRTMP) {
-    val ev = new DeskShareNotifyViewersRTMPRecordEvent()
-    ev.setMeetingId(msg.header.meetingId)
-    ev.setStreamPath(msg.streamPath)
-    ev.setBroadcasting(msg.broadcasting)
-
-    record(msg.header.meetingId, JavaConverters.mapAsScalaMap(ev.toMap).toMap)
-  }
-  */
 
   /* temporarily disabling due to issue https://github.com/bigbluebutton/bigbluebutton/issues/19701
   private def handleTranscriptUpdatedEvtMsg(msg: TranscriptUpdatedEvtMsg) {
@@ -672,7 +687,7 @@ class RedisRecorderActor(
     record(msg.header.meetingId, ev.toMap.asJava)
   }
 
-  private def handleEndAndKickAllSysMsg(msg: MeetingEndingEvtMsg): Unit = {
+  private def handleMeetingEndingEvtMsg(msg: MeetingEndingEvtMsg): Unit = {
     val ev = new EndAndKickAllRecordEvent()
     ev.setMeetingId(msg.header.meetingId)
     ev.setReason(msg.body.reason)

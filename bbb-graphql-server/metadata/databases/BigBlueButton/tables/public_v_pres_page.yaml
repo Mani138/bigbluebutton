@@ -39,6 +39,8 @@ select_permissions:
         - widthRatio
         - xOffset
         - yOffset
+        - infiniteWhiteboard
       filter:
         meetingId:
           _eq: X-Hasura-PresenterInMeeting
+      allow_aggregations: true

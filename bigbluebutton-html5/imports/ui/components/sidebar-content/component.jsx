@@ -3,15 +3,15 @@ import PropTypes from 'prop-types';
 import Resizable from 're-resizable';
 import { ACTIONS, PANELS } from '../layout/enums';
 import ChatContainer from '/imports/ui/components/chat/chat-graphql/component';
-import NotesContainer from '/imports/ui/components/notes/container';
+import NotesContainer from '/imports/ui/components/notes/component';
 import PollContainer from '/imports/ui/components/poll/container';
-import CaptionsContainer from '/imports/ui/components/captions/container';
-import BreakoutRoomContainer from '/imports/ui/components/breakout-room/container';
-import TimerContainer from '/imports/ui/components/timer/container';
+import BreakoutRoomContainer from '../breakout-room/breakout-room/component';
+import TimerContainer from '/imports/ui/components/timer/panel/component';
 import GuestUsersManagementPanel from '/imports/ui/components/waiting-users/waiting-users-graphql/component';
 import Styled from './styles';
 import ErrorBoundary from '/imports/ui/components/common/error-boundary/component';
 import FallbackView from '/imports/ui/components/common/fallback-errors/fallback-view/component';
+import GenericContentSidekickContainer from '/imports/ui/components/generic-content/generic-sidekick-content/container';
 
 const propTypes = {
   top: PropTypes.number.isRequired,
@@ -27,16 +27,11 @@ const propTypes = {
   contextDispatch: PropTypes.func.isRequired,
 };
 
-const defaultProps = {
-  left: null,
-  right: null,
-};
-
 const SidebarContent = (props) => {
   const {
     top,
-    left,
-    right,
+    left = null,
+    right = null,
     zIndex,
     minWidth,
     width,
@@ -121,13 +116,23 @@ const SidebarContent = (props) => {
         top,
         left,
         right,
-        zIndex,
+        zIndex: '2',
         width,
         height,
       }}
       handleStyles={{
-        left: { height: '100vh' },
-        right: { height: '100vh' },
+        left: {
+          width: '4px',
+          height: '100vh',
+          left: '-2px',
+          cursor: 'ew-resize',
+        },
+        right: {
+          width: '12px',
+          height: '100vh',
+          right: '-12px',
+          cursor: 'ew-resize',
+        },
       }}
     >
       {sidebarContentPanel === PANELS.CHAT
@@ -143,7 +148,6 @@ const SidebarContent = (props) => {
           isToSharedNotesBeShow={sidebarContentPanel === PANELS.SHARED_NOTES}
         />
       )}
-      {sidebarContentPanel === PANELS.CAPTIONS && <CaptionsContainer amIModerator={amIModerator} />}
       {sidebarContentPanel === PANELS.BREAKOUT && <BreakoutRoomContainer />}
       {sidebarContentPanel === PANELS.TIMER && <TimerContainer isModerator={amIModerator} />}
       {sidebarContentPanel === PANELS.WAITING_USERS && <GuestUsersManagementPanel />}
@@ -159,10 +163,14 @@ const SidebarContent = (props) => {
           />
         </Styled.Poll>
       )}
+      {sidebarContentPanel.includes(PANELS.GENERIC_CONTENT_SIDEKICK) && (
+        <GenericContentSidekickContainer
+          genericSidekickContentId={sidebarContentPanel}
+        />
+      )}
     </Resizable>
   );
 };
 
 SidebarContent.propTypes = propTypes;
-SidebarContent.defaultProps = defaultProps;
 export default SidebarContent;

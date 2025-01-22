@@ -7,7 +7,7 @@ import {
   HookEvents,
 } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/enum';
 import { DataConsumptionHooks } from 'bigbluebutton-html-plugin-sdk/dist/cjs/data-consumption/enums';
-import { UpdatedEventDetails } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/types';
+import { SubscribedEventDetails, UpdatedEventDetails } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/types';
 import useLoadedPageGathering from '/imports/ui/core/hooks/useLoadedChatMessages';
 import { Message } from '/imports/ui/Types/message';
 import formatLoadedChatMessagesDataFromGraphql from './utils';
@@ -19,12 +19,13 @@ const LoadedChatMessagesHookContainer = () => {
     message: message.message,
     messageId: message.messageId,
     user: message.user,
+    messageMetadata: message.messageMetadata,
   }));
 
   const updateLoadedChatMessagesForPlugin = () => {
     window.dispatchEvent(new CustomEvent<
       UpdatedEventDetails<PluginSdk.GraphqlResponseWrapper<LoadedChatMessage[]>>
-    >(HookEvents.UPDATED, {
+    >(HookEvents.BBB_CORE_SENT_NEW_DATA, {
       detail: {
         data: formatLoadedChatMessagesDataFromGraphql(chatMessagesData),
         hook: DataConsumptionHooks.LOADED_CHAT_MESSAGES,
@@ -37,15 +38,15 @@ const LoadedChatMessagesHookContainer = () => {
   }, [chatMessagesData, sendSignal]);
 
   useEffect(() => {
-    const updateHookUseLoadedChatMessages = () => {
-      setSendSignal(!sendSignal);
-    };
+    const updateHookUseLoadedChatMessages = ((event: CustomEvent<SubscribedEventDetails>) => {
+      if (event.detail.hook === DataConsumptionHooks.LOADED_CHAT_MESSAGES) setSendSignal((signal) => !signal);
+    }) as EventListener;
     window.addEventListener(
-      HookEvents.SUBSCRIBED, updateHookUseLoadedChatMessages,
+      HookEvents.PLUGIN_SUBSCRIBED_TO_BBB_CORE, updateHookUseLoadedChatMessages,
     );
     return () => {
       window.removeEventListener(
-        HookEvents.SUBSCRIBED, updateHookUseLoadedChatMessages,
+        HookEvents.PLUGIN_SUBSCRIBED_TO_BBB_CORE, updateHookUseLoadedChatMessages,
       );
     };
   }, []);

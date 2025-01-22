@@ -42,6 +42,10 @@ type Mutation {
 }
 
 type Mutation {
+  breakoutRoomSetInviteDismissed: Boolean
+}
+
+type Mutation {
   breakoutRoomSetTime(
     timeInMinutes: Int!
   ): Boolean
@@ -60,6 +64,19 @@ type Mutation {
 }
 
 type Mutation {
+  cameraSetShowAsContent(
+    streamId: String!
+    showAsContent: Boolean!
+  ): Boolean
+}
+
+type Mutation {
+  captionAddLocale(
+    locale: String!
+  ): Boolean
+}
+
+type Mutation {
   captionSubmitText(
     transcriptId: String!
     start: Int!
@@ -72,8 +89,40 @@ type Mutation {
 }
 
 type Mutation {
+  captionSubmitTranscript(
+    transcriptId: String!
+    transcript: String!
+    locale: String!
+  ): Boolean
+}
+
+type Mutation {
   chatCreateWithUser(
     userId: String!
+  ): Boolean
+}
+
+type Mutation {
+  chatDeleteMessage(
+    chatId: String!
+    messageId: String!
+  ): Boolean
+}
+
+type Mutation {
+  chatDeleteMessageReaction(
+    chatId: String!
+    messageId: String!
+    reactionEmoji: String!
+    reactionEmojiId: String!
+  ): Boolean
+}
+
+type Mutation {
+  chatEditMessage(
+    chatId: String!
+    messageId: String!
+    chatMessageInMarkdownFormat: String!
   ): Boolean
 }
 
@@ -91,13 +140,38 @@ type Mutation {
   chatSendMessage(
     chatId: String!
     chatMessageInMarkdownFormat: String!
+    replyToMessageId: String
+    metadata: json
   ): Boolean
+}
+
+type Mutation {
+  chatSendMessageReaction(
+    chatId: String!
+    messageId: String!
+    reactionEmoji: String!
+    reactionEmojiId: String!
+  ): Boolean
+}
+
+type Mutation {
+  chatSetLastSeen: Boolean
 }
 
 type Mutation {
   chatSetTyping(
     chatId: String
   ): Boolean
+}
+
+type Mutation {
+  chatSetVisible(
+    visible: Boolean!
+  ): Boolean
+}
+
+type Mutation {
+  echoTestRunningAt: Boolean
 }
 
 type Mutation {
@@ -201,17 +275,19 @@ type Mutation {
 }
 
 type Mutation {
-  pluginDataChannelDeleteMessage(
+  pluginDataChannelDeleteEntry(
     pluginName: String!
-    dataChannel: String!
-    messageId: String!
+    channelName: String!
+    subChannelName: String!
+    entryId: String!
   ): Boolean
 }
 
 type Mutation {
-  pluginDataChannelDispatchMessage(
+  pluginDataChannelPushEntry(
     pluginName: String!
-    dataChannel: String!
+    subChannelName: String!
+    channelName: String!
     payloadJson: String!
     toRoles: [String]!
     toUserIds: [String]!
@@ -219,9 +295,27 @@ type Mutation {
 }
 
 type Mutation {
+  pluginDataChannelReplaceEntry(
+    pluginName: String!
+    subChannelName: String!
+    channelName: String!
+    entryId: String!
+    payloadJson: String!
+  ): Boolean
+}
+
+type Mutation {
   pluginDataChannelReset(
     pluginName: String!
-    dataChannel: String!
+    channelName: String!
+    subChannelName: String!
+  ): Boolean
+}
+
+type Mutation {
+  pluginLearningAnalyticsDashboardSendGenericData(
+    genericDataForLearningAnalyticsDashboard: json!
+    pluginName: String!
   ): Boolean
 }
 
@@ -326,6 +420,13 @@ type Mutation {
 type Mutation {
   presentationSetPage(
     presentationId: String!
+    pageId: String!
+  ): Boolean
+}
+
+type Mutation {
+  presentationSetPageInfiniteWhiteboard(
+    infiniteWhiteboard: Boolean!
     pageId: String!
   ): Boolean
 }
@@ -460,11 +561,20 @@ type Mutation {
 }
 
 type Mutation {
-  userSetConnectionAlive: Boolean
+  userSetCaptionLocale(
+    locale: String!
+    provider: String!
+  ): Boolean
 }
 
 type Mutation {
-  userSetConnectionRtt(
+  userSetClientSettings(
+    userClientSettingsJson: json!
+  ): Boolean
+}
+
+type Mutation {
+  userSetConnectionAlive(
     networkRttInMs: Float!
   ): Boolean
 }
@@ -485,12 +595,6 @@ type Mutation {
   userSetLocked(
     userId: String!
     locked: Boolean!
-  ): Boolean
-}
-
-type Mutation {
-  userSetMobileFlag(
-    mobile: Boolean!
   ): Boolean
 }
 
@@ -531,6 +635,26 @@ type Mutation {
   userSetSpeechLocale(
     locale: String!
     provider: String!
+  ): Boolean
+}
+
+type Mutation {
+  userSetSpeechOptions(
+    partialUtterances: Boolean!
+    minUtteranceLength: Float!
+  ): Boolean
+}
+
+type Mutation {
+  userSetTalking(
+    talking: Boolean!
+  ): Boolean
+}
+
+type Mutation {
+  userSetUserLockSettings(
+    userId: String!
+    disablePubChat: Boolean!
   ): Boolean
 }
 

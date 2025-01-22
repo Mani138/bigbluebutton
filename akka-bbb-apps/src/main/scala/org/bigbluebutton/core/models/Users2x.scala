@@ -1,7 +1,7 @@
 package org.bigbluebutton.core.models
 
 import com.softwaremill.quicklens._
-import org.bigbluebutton.core.db.{ UserDAO, UserReactionDAO, UserStateDAO }
+import org.bigbluebutton.core.db.{ UserDAO, UserLockSettingsDAO, UserReactionDAO, UserStateDAO }
 import org.bigbluebutton.core.util.TimeUtil
 import org.bigbluebutton.core2.message.senders.MsgBuilder
 
@@ -46,10 +46,10 @@ object Users2x {
     for {
       u <- findWithIntId(users, intId)
     } yield {
-      val newUser = u.copy(userLeftFlag = UserLeftFlag(false, 0))
+      val newUser = u.copy(userLeftFlag = UserLeftFlag(left = false, 0))
       users.save(newUser)
       UserStateDAO.update(newUser)
-      UserStateDAO.updateExpired(u.intId, false)
+      UserStateDAO.updateExpired(u.meetingId, u.intId, expired = false)
       newUser
     }
   }
@@ -67,7 +67,7 @@ object Users2x {
   }
 
   def numUsers(users: Users2x): Int = {
-    users.toVector.length
+    users.toVector.filter(u => !u.bot).length
   }
 
   def numActiveModerators(users: Users2x): Int = {
@@ -101,7 +101,7 @@ object Users2x {
   def resetLastInactivityInspect(users: Users2x, u: UserState): UserState = {
     val newUserState = modify(u)(_.lastInactivityInspect).setTo(0)
     users.save(newUserState)
-    UserStateDAO.updateInactivityWarning(u.intId, inactivityWarningDisplay = false, 0)
+    UserStateDAO.updateInactivityWarning(u.meetingId, u.intId, inactivityWarningDisplay = false, 0)
     newUserState
   }
 
@@ -121,6 +121,13 @@ object Users2x {
     val newUserState = modify(u)(_.mobile).setTo(true)
     users.save(newUserState)
     UserStateDAO.update((newUserState))
+    newUserState
+  }
+
+  def setClientType(users: Users2x, u: UserState, clientType: String): UserState = {
+    val newUserState = modify(u)(_.clientType).setTo(clientType)
+    users.save(newUserState)
+    UserStateDAO.update(newUserState)
     newUserState
   }
 
@@ -188,17 +195,6 @@ object Users2x {
     }
   }
 
-  def setEmojiStatus(users: Users2x, intId: String, emoji: String): Option[UserState] = {
-    for {
-      u <- findWithIntId(users, intId)
-    } yield {
-      val newUser = u.modify(_.emoji).setTo(emoji)
-
-      users.save(newUser)
-      UserStateDAO.update(newUser)
-      newUser
-    }
-  }
   def setReactionEmoji(users: Users2x, intId: String, reactionEmoji: String, durationInSeconds: Int): Option[UserState] = {
     for {
       u <- findWithIntId(users, intId)
@@ -207,7 +203,7 @@ object Users2x {
         .modify(_.reactionChangedOn).setTo(System.currentTimeMillis())
 
       users.save(newUser)
-      UserReactionDAO.insert(intId, reactionEmoji, durationInSeconds)
+      UserReactionDAO.insert(u.meetingId, u.intId, reactionEmoji, durationInSeconds)
       newUser
     }
   }
@@ -245,11 +241,33 @@ object Users2x {
     }
   }
 
+  def setUserLockSettings(users: Users2x, intId: String, userLockSettings: UserLockSettings): Option[UserState] = {
+    for {
+      u <- findWithIntId(users, intId)
+    } yield {
+      val newUser = u.modify(_.userLockSettings).setTo(userLockSettings)
+      UserLockSettingsDAO.insertOrUpdate(u.meetingId, u.intId, userLockSettings)
+      users.save(newUser)
+      newUser
+    }
+  }
+
   def setUserSpeechLocale(users: Users2x, intId: String, locale: String): Option[UserState] = {
     for {
       u <- findWithIntId(users, intId)
     } yield {
       val newUser = u.modify(_.speechLocale).setTo(locale)
+      UserStateDAO.update(newUser)
+      users.save(newUser)
+      newUser
+    }
+  }
+
+  def setUserCaptionLocale(users: Users2x, intId: String, locale: String): Option[UserState] = {
+    for {
+      u <- findWithIntId(users, intId)
+    } yield {
+      val newUser = u.modify(_.captionLocale).setTo(locale)
       UserStateDAO.update(newUser)
       users.save(newUser)
       newUser
@@ -406,31 +424,38 @@ case class OldPresenter(userId: String, changedPresenterOn: Long)
 
 case class UserLeftFlag(left: Boolean, leftOn: Long)
 
+case class UserLockSettings(disablePublicChat: Boolean = false)
+
 case class UserState(
     intId:                 String,
     extId:                 String,
+    meetingId:             String,
     name:                  String,
     role:                  String,
+    bot:                   Boolean,
     guest:                 Boolean,
     pin:                   Boolean,
     mobile:                Boolean,
     authed:                Boolean,
     guestStatus:           String,
-    emoji:                 String,
     reactionEmoji:         String,
-    reactionChangedOn:     Long         = 0,
+    reactionChangedOn:     Long                = 0,
     raiseHand:             Boolean,
     away:                  Boolean,
     locked:                Boolean,
     presenter:             Boolean,
     avatar:                String,
+    webcamBackground:      String,
     color:                 String,
-    roleChangedOn:         Long         = System.currentTimeMillis(),
-    lastActivityTime:      Long         = System.currentTimeMillis(),
-    lastInactivityInspect: Long         = 0,
+    roleChangedOn:         Long                = System.currentTimeMillis(),
+    lastActivityTime:      Long                = System.currentTimeMillis(),
+    lastInactivityInspect: Long                = 0,
     clientType:            String,
     userLeftFlag:          UserLeftFlag,
-    speechLocale:          String       = ""
+    speechLocale:          String              = "",
+    captionLocale:         String              = "",
+    userMetadata:          Map[String, String] = Map.empty,
+    userLockSettings:      UserLockSettings    = UserLockSettings()
 )
 
 case class UserIdAndName(id: String, name: String)

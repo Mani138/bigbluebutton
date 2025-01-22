@@ -1,15 +1,13 @@
 package org.bigbluebutton.core.db
 
 import slick.jdbc.PostgresProfile.api._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{ Failure, Success }
 
 case class CaptionDbModel(
     captionId:   String,
     meetingId:   String,
     captionType: String,
     userId:      String,
-    lang:        String,
+    locale:      String,
     captionText: String,
     createdAt:   java.sql.Timestamp
 )
@@ -19,10 +17,10 @@ class CaptionTableDef(tag: Tag) extends Table[CaptionDbModel](tag, None, "captio
   val meetingId = column[String]("meetingId")
   val captionType = column[String]("captionType")
   val userId = column[String]("userId")
-  val lang = column[String]("lang")
+  val locale = column[String]("locale")
   val captionText = column[String]("captionText")
   val createdAt = column[java.sql.Timestamp]("createdAt")
-  def * = (captionId, meetingId, captionType, userId, lang, captionText, createdAt) <> (CaptionDbModel.tupled, CaptionDbModel.unapply)
+  def * = (captionId, meetingId, captionType, userId, locale, captionText, createdAt) <> (CaptionDbModel.tupled, CaptionDbModel.unapply)
 }
 
 object CaptionTypes {
@@ -32,23 +30,21 @@ object CaptionTypes {
 
 object CaptionDAO {
 
-  def insertOrUpdateAudioCaption(captionId: String, meetingId: String, userId: String, transcript: String, lang: String) = {
-    DatabaseConnection.db.run(
+  def insertOrUpdateCaption(captionId: String, meetingId: String, userId: String, transcript: String,
+                            locale: String, captionType: String = CaptionTypes.AUDIO_TRANSCRIPTION) = {
+    DatabaseConnection.enqueue(
       TableQuery[CaptionTableDef].insertOrUpdate(
         CaptionDbModel(
           captionId = captionId,
           meetingId = meetingId,
-          captionType = CaptionTypes.AUDIO_TRANSCRIPTION,
+          captionType = captionType,
           userId = userId,
-          lang = lang,
+          locale = locale,
           captionText = transcript,
           createdAt = new java.sql.Timestamp(System.currentTimeMillis())
         )
       )
-    ).onComplete {
-        case Success(_) => DatabaseConnection.logger.debug(s"Upserted caption with ID $captionId on Caption table")
-        case Failure(e) => DatabaseConnection.logger.debug(s"Error upserting caption on Caption: $e")
-      }
+    )
   }
 
   def insertOrUpdatePadCaption(meetingId: String, locale: String, userId: String, text: String) = {
@@ -68,7 +64,7 @@ object CaptionDAO {
                     SELECT "captionId", "captionText", "createdAt"
                     FROM caption
                     WHERE "meetingId" = ${meetingId}
-                    AND lang = ${locale}
+                    AND locale = ${locale}
                     AND "captionType" = ${CaptionTypes.TYPED}
                     order by "createdAt" desc
                     limit 2
@@ -80,25 +76,19 @@ object CaptionDAO {
                   LIMIT 1
                 )
           RETURNING *)
-        INSERT INTO caption ("captionId", "meetingId", "captionType", "userId", "lang", "captionText", "createdAt")
+        INSERT INTO caption ("captionId", "meetingId", "captionType", "userId", "locale", "captionText", "createdAt")
         SELECT md5(random()::text || clock_timestamp()::text), ${meetingId}, 'TYPED', ${userId}, ${locale}, ${line}, current_timestamp
         WHERE NOT EXISTS (SELECT * FROM upsert)
         AND ${line} NOT IN (SELECT "captionText"
                     FROM caption
                     WHERE "meetingId" = ${meetingId}
-                    AND lang = ${locale}
+                    AND locale = ${locale}
                     AND "captionType" = ${CaptionTypes.TYPED}
                     order by "createdAt" desc
                     limit 2
                   )"""
     }
 
-    DatabaseConnection.db.run(DBIO.sequence(actions).transactionally).onComplete {
-      case Success(rowsAffected) =>
-        val total = rowsAffected.sum
-        DatabaseConnection.logger.debug(s"$total row(s) affected in caption table!")
-      case Failure(e) =>
-        DatabaseConnection.logger.error(s"Error executing action: ", e)
-    }
+    DatabaseConnection.enqueue(DBIO.sequence(actions).transactionally)
   }
 }

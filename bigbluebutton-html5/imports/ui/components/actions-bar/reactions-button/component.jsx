@@ -4,31 +4,25 @@ import PropTypes from 'prop-types';
 import BBBMenu from '/imports/ui/components/common/menu/component';
 import { convertRemToPixels } from '/imports/utils/dom-utils';
 import data from '@emoji-mart/data';
-import withShortcutHelper from '/imports/ui/components/shortcut-help/service';
 import { init } from 'emoji-mart';
-import { SET_RAISE_HAND, SET_REACTION_EMOJI } from '/imports/ui/core/graphql/mutations/userMutations';
+import { SET_REACTION_EMOJI } from '/imports/ui/core/graphql/mutations/userMutations';
 import { useMutation } from '@apollo/client';
-
 import Styled from './styles';
-
-const REACTIONS = window.meetingClientSettings.public.userReaction.reactions;
 
 const ReactionsButton = (props) => {
   const {
     intl,
     actionsBarRef,
-    userId,
-    raiseHand,
     isMobile,
-    shortcuts,
     currentUserReaction,
     autoCloseReactionsBar,
   } = props;
 
+  const REACTIONS = window.meetingClientSettings.public.userReaction.reactions;
+
   // initialize emoji-mart data, need for the new version
   init({ data });
 
-  const [setRaiseHand] = useMutation(SET_RAISE_HAND);
   const [setReactionEmoji] = useMutation(SET_REACTION_EMOJI);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -37,14 +31,7 @@ const ReactionsButton = (props) => {
     reactionsLabel: {
       id: 'app.actionsBar.reactions.reactionsButtonLabel',
       description: 'reactions Label',
-    },
-    raiseHandLabel: {
-      id: 'app.actionsBar.reactions.raiseHand',
-      description: 'raise Hand Label',
-    },
-    notRaiseHandLabel: {
-      id: 'app.actionsBar.reactions.lowHand',
-      description: 'not Raise Hand Label',
+      defaultMessage: 'Share a reaction',
     },
   });
 
@@ -56,25 +43,7 @@ const ReactionsButton = (props) => {
   };
 
   const handleReactionSelect = (reaction) => {
-    const newReaction = currentUserReaction === reaction ? 'none' : reaction;
-    setReactionEmoji({ variables: { reactionEmoji: newReaction } });
-  };
-
-  const handleRaiseHandButtonClick = () => {
-    setRaiseHand({
-      variables: {
-        userId,
-        raiseHand: !raiseHand,
-      },
-    });
-  };
-
-  const RaiseHandButtonLabel = () => {
-    if (isMobile) return null;
-
-    return raiseHand
-      ? intl.formatMessage(intlMessages.notRaiseHandLabel)
-      : intl.formatMessage(intlMessages.raiseHandLabel);
+    setReactionEmoji({ variables: { reactionEmoji: reaction } });
   };
 
   const customStyles = {
@@ -94,11 +63,6 @@ const ReactionsButton = (props) => {
     padding: '4px',
   };
 
-  const handReaction = {
-    id: 'hand',
-    native: '✋',
-  };
-
   let actions = [];
 
   REACTIONS.forEach(({ id, native }) => {
@@ -110,38 +74,26 @@ const ReactionsButton = (props) => {
     });
   });
 
-  actions.push({
-    label: <Styled.RaiseHandButtonWrapper accessKey={shortcuts.raisehand} isMobile={isMobile} data-test={raiseHand ? 'lowerHandBtn' : 'raiseHandBtn'} active={raiseHand}><em-emoji key={handReaction.id} native={handReaction.native} emoji={{ id: handReaction.id }} {...emojiProps} />{RaiseHandButtonLabel()}</Styled.RaiseHandButtonWrapper>,
-    key: 'hand',
-    onClick: () => handleRaiseHandButtonClick(),
-    customStyles: {...actionCustomStyles, width: 'auto'},
-  });
-
-  const icon = !raiseHand && currentUserReaction === 'none' ? 'hand' : null;
+  const svgIcon = currentUserReaction === 'none' ? 'reactions' : null;
   const currentUserReactionEmoji = REACTIONS.find(({ native }) => native === currentUserReaction);
 
   let customIcon = null;
 
-  if (raiseHand) {
-    customIcon = <em-emoji key={handReaction.id} native={handReaction.native} emoji={handReaction} {...emojiProps} />;
-  } else {
-    if (!icon) {
-      customIcon = <em-emoji key={currentUserReactionEmoji?.id} native={currentUserReactionEmoji?.native} emoji={{ id: currentUserReactionEmoji?.id }} {...emojiProps} />;
-    }
+  if (!svgIcon) {
+    customIcon = <em-emoji key={currentUserReactionEmoji?.id} native={currentUserReactionEmoji?.native} emoji={{ id: currentUserReactionEmoji?.id }} {...emojiProps} />;
   }
 
   return (
     <BBBMenu
       trigger={(
         <Styled.ReactionsDropdown id="interactionsButton">
-          <Styled.RaiseHandButton
+          <Styled.ReactionsButton
             data-test="reactionsButton"
-            icon={icon}
+            svgIcon={svgIcon}
             customIcon={customIcon}
             label={intl.formatMessage(intlMessages.reactionsLabel)}
             description="Reactions"
-            ghost={!showEmojiPicker && !customIcon}
-            onKeyPress={() => {}}
+            onKeyPress={() => { }}
             onClick={() => setShowEmojiPicker(true)}
             color={showEmojiPicker || customIcon ? 'primary' : 'default'}
             hideLabel
@@ -159,7 +111,8 @@ const ReactionsButton = (props) => {
       overrideMobileStyles
       isHorizontal={!isMobile}
       isMobile={isMobile}
-      roundButtons={true}
+      isEmoji
+      roundButtons
       keepOpen={!autoCloseReactionsBar}
       opts={{
         id: 'reactions-dropdown-menu',
@@ -179,16 +132,10 @@ const propTypes = {
     formatMessage: PropTypes.func.isRequired,
   }).isRequired,
   userId: PropTypes.string.isRequired,
-  emoji: PropTypes.string,
   sidebarContentPanel: PropTypes.string.isRequired,
   layoutContextDispatch: PropTypes.func.isRequired,
 };
 
-const defaultProps = {
-  emoji: '',
-};
-
 ReactionsButton.propTypes = propTypes;
-ReactionsButton.defaultProps = defaultProps;
 
-export default withShortcutHelper(ReactionsButton, ['raiseHand']);
+export default ReactionsButton;

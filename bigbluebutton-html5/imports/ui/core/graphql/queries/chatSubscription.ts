@@ -1,7 +1,7 @@
 import { gql } from '@apollo/client';
 
 const CHATS_SUBSCRIPTION = gql`
-  subscription {
+  subscription ChatSubscription {
     chat(
       order_by: [
         { public: desc }
@@ -17,7 +17,7 @@ const CHATS_SUBSCRIPTION = gql`
         color
         loggedOut
         avatar
-        isOnline
+        currentlyInMeeting
         isModerator
       }
       totalMessages

@@ -1,81 +1,85 @@
-import { Meteor } from 'meteor/meteor';
-import { withTracker } from 'meteor/react-meteor-data';
 import React, { useEffect } from 'react';
-import { defineMessages, injectIntl } from 'react-intl';
-import Auth from '/imports/ui/services/auth';
-import { MeetingTimeRemaining } from '/imports/api/meetings';
-import Meetings from '/imports/api/meetings';
-import MeetingRemainingTime from './meeting-remaining-time/container';
-import Styled from './styles';
+import { defineMessages, useIntl } from 'react-intl';
+import { isEmpty } from 'radash';
+import MeetingRemainingTime from '/imports/ui/components/common/remaining-time/meeting-duration/component';
+import { useReactiveVar } from '@apollo/client';
 import { layoutSelectInput, layoutDispatch } from '../layout/context';
 import { ACTIONS } from '../layout/enums';
-import { isEmpty } from 'radash';
 
-import breakoutService from '/imports/ui/components/breakout-room/service';
 import NotificationsBar from './component';
-
-// disconnected and trying to open a new connection
-const STATUS_CONNECTING = 'connecting';
-
-// permanently failed to connect; e.g., the client and server support different versions of DDP
-const STATUS_FAILED = 'failed';
-
-// failed to connect and waiting to try to reconnect
-const STATUS_WAITING = 'waiting';
-
-const METEOR_SETTINGS_APP = window.meetingClientSettings.public.app;
-
-const REMAINING_TIME_THRESHOLD = METEOR_SETTINGS_APP.remainingTimeThreshold;
+import connectionStatus from '../../core/graphql/singletons/connectionStatus';
+import useMeeting from '../../core/hooks/useMeeting';
 
 const intlMessages = defineMessages({
-  failedMessage: {
-    id: 'app.failedMessage',
-    description: 'Notification for connecting to server problems',
+  connectionCode3001: {
+    id: 'app.notificationBar.connectionCode3001',
+    description: 'Closed connection alert',
   },
-  connectingMessage: {
-    id: 'app.connectingMessage',
-    description: 'Notification message for when client is connecting to server',
+  connectionCode3002: {
+    id: 'app.notificationBar.connectionCode3002',
+    description: 'Impossible connection alert',
   },
-  waitingMessage: {
-    id: 'app.waitingMessage',
-    description: 'Notification message for disconnection with reconnection counter',
+  connectionCode3003: {
+    id: 'app.notificationBar.connectionCode3003',
+    description: 'Unresponsive server alert',
   },
-  retryNow: {
-    id: 'app.retryNow',
-    description: 'Retry now text for reconnection counter',
+  connectionCode3004: {
+    id: 'app.notificationBar.connectionCode3004',
+    description: 'Unstable connection alert',
   },
-  breakoutTimeRemaining: {
-    id: 'app.breakoutTimeRemainingMessage',
-    description: 'Message that tells how much time is remaining for the breakout room',
-  },
-  breakoutWillClose: {
-    id: 'app.breakoutWillCloseMessage',
-    description: 'Message that tells time has ended and breakout will close',
-  },
-  calculatingBreakoutTimeRemaining: {
-    id: 'app.calculatingBreakoutTimeRemaining',
-    description: 'Message that tells that the remaining time is being calculated',
-  },
-  meetingTimeRemaining: {
-    id: 'app.meeting.meetingTimeRemaining',
-    description: 'Message that tells how much time is remaining for the meeting',
-  },
-  meetingWillClose: {
-    id: 'app.meeting.meetingTimeHasEnded',
-    description: 'Message that tells time has ended and meeting will close',
-  },
-  alertMeetingEndsUnderMinutes: {
-    id: 'app.meeting.alertMeetingEndsUnderMinutes',
-    description: 'Alert that tells that the meeting ends under x minutes',
-  },
-  alertBreakoutEndsUnderMinutes: {
-    id: 'app.meeting.alertBreakoutEndsUnderMinutes',
-    description: 'Alert that tells that the breakout ends under x minutes',
+  connectionCode3005: {
+    id: 'app.notificationBar.connectionCode3005',
+    description: 'Slow data alert',
   },
 });
 
-const NotificationsBarContainer = (props) => {
-  const { message, color } = props;
+const STATUS_CRITICAL = 'critical';
+const COLOR_PRIMARY = 'primary';
+
+const NotificationsBarContainer = () => {
+  const data = {};
+  data.alert = true;
+  data.color = COLOR_PRIMARY;
+  const intl = useIntl();
+  const connected = useReactiveVar(connectionStatus.getConnectedStatusVar());
+  const serverIsResponding = useReactiveVar(connectionStatus.getServerIsRespondingVar());
+  const pingIsComing = useReactiveVar(connectionStatus.getPingIsComingVar());
+  const lastRttRequestSuccess = useReactiveVar(connectionStatus.getLastRttRequestSuccessVar());
+  const rttStatus = useReactiveVar(connectionStatus.getRttStatusVar());
+  const isCritical = rttStatus === STATUS_CRITICAL;
+  // if connection failed x attempts a error will be thrown
+  if (!connected) {
+    data.message = isCritical
+      ? intl.formatMessage(intlMessages.connectionCode3002)
+      : intl.formatMessage(intlMessages.connectionCode3001);
+  } else if (connected && !serverIsResponding) {
+    data.message = isCritical
+      ? intl.formatMessage(intlMessages.connectionCode3004)
+      : intl.formatMessage(intlMessages.connectionCode3003);
+  } else if (connected && serverIsResponding && !pingIsComing && lastRttRequestSuccess) {
+    data.message = intl.formatMessage(intlMessages.connectionCode3005);
+  }
+
+  const { data: meeting } = useMeeting((m) => ({
+    isBreakout: m.isBreakout,
+    componentsFlags: m.componentsFlags,
+  }));
+
+  if (meeting?.isBreakout) {
+    data.message = (
+      <MeetingRemainingTime />
+    );
+  }
+
+  if (meeting) {
+    const { isBreakout, componentsFlags } = meeting;
+
+    if (componentsFlags.showRemainingTime && !isBreakout) {
+      data.message = (
+        <MeetingRemainingTime />
+      );
+    }
+  }
 
   const notificationsBar = layoutSelectInput((i) => i.notificationsBar);
   const layoutContextDispatch = layoutDispatch();
@@ -83,7 +87,7 @@ const NotificationsBarContainer = (props) => {
   const { hasNotification } = notificationsBar;
 
   useEffect(() => {
-    const localHasNotification = !!message;
+    const localHasNotification = !!data.message;
 
     if (localHasNotification !== hasNotification) {
       layoutContextDispatch({
@@ -91,123 +95,17 @@ const NotificationsBarContainer = (props) => {
         value: localHasNotification,
       });
     }
-  }, [message, hasNotification]);
+  }, [data.message, hasNotification]);
 
-  if (isEmpty(message)) {
+  if (isEmpty(data.message)) {
     return null;
   }
 
   return (
-    <NotificationsBar color={color}>
-      {message}
+    <NotificationsBar color={data.color}>
+      {data.message}
     </NotificationsBar>
   );
 };
 
-let retrySeconds = 0;
-const retrySecondsDep = new Tracker.Dependency();
-let retryInterval = null;
-
-const getRetrySeconds = () => {
-  retrySecondsDep.depend();
-  return retrySeconds;
-};
-
-const setRetrySeconds = (sec = 0) => {
-  if (sec !== retrySeconds) {
-    retrySeconds = sec;
-    retrySecondsDep.changed();
-  }
-};
-
-const startCounter = (sec, set, get, interval) => {
-  clearInterval(interval);
-  set(sec);
-  return setInterval(() => {
-    set(get() - 1);
-  }, 1000);
-};
-
-const reconnect = () => {
-  Meteor.reconnect();
-};
-
-export default injectIntl(withTracker(({ intl }) => {
-  const { status, connected, retryTime } = Meteor.status();
-  const data = {};
-
-  if (!connected) {
-    data.color = 'primary';
-    switch (status) {
-      case STATUS_FAILED: {
-        data.color = 'danger';
-        data.message = intl.formatMessage(intlMessages.failedMessage);
-        break;
-      }
-      case STATUS_CONNECTING: {
-        data.message = intl.formatMessage(intlMessages.connectingMessage);
-        break;
-      }
-      case STATUS_WAITING: {
-        const sec = Math.round((retryTime - (new Date()).getTime()) / 1000);
-        retryInterval = startCounter(sec, setRetrySeconds, getRetrySeconds, retryInterval);
-        data.message = (
-          <>
-            {intl.formatMessage(intlMessages.waitingMessage, { 0: getRetrySeconds() })}
-            <Styled.RetryButton type="button" onClick={reconnect}>
-              {intl.formatMessage(intlMessages.retryNow)}
-            </Styled.RetryButton>
-          </>
-        );
-        break;
-      }
-      default:
-        break;
-    }
-
-    return data;
-  }
-
-  const meetingId = Auth.meetingID;
-  const breakouts = breakoutService.getBreakouts();
-
-  if (breakouts.length > 0) {
-    const currentBreakout = breakouts.find((b) => b.breakoutId === meetingId);
-
-    if (currentBreakout) {
-      data.message = (
-        <MeetingRemainingTime
-          breakoutRoom={currentBreakout}
-          messageDuration={intlMessages.breakoutTimeRemaining}
-          timeEndedMessage={intlMessages.breakoutWillClose}
-          displayAlerts={true}
-        />
-      );
-    }
-  }
-
-  const meetingTimeRemaining = MeetingTimeRemaining.findOne({ meetingId });
-  const Meeting = Meetings.findOne({ meetingId },
-    { fields: { isBreakout: 1 } });
-
-  if (meetingTimeRemaining && Meeting) {
-    const { timeRemaining } = meetingTimeRemaining;
-    const { isBreakout } = Meeting;
-    const underThirtyMin = timeRemaining && timeRemaining <= (REMAINING_TIME_THRESHOLD * 60);
-
-    if (underThirtyMin && !isBreakout) {
-      data.message = (
-        <MeetingRemainingTime
-          breakoutRoom={meetingTimeRemaining}
-          messageDuration={intlMessages.meetingTimeRemaining}
-          timeEndedMessage={intlMessages.meetingWillClose}
-          displayAlerts={true}
-        />
-      );
-    }
-  }
-
-  data.alert = true;
-  data.color = 'primary';
-  return data;
-})(NotificationsBarContainer));
+export default NotificationsBarContainer;

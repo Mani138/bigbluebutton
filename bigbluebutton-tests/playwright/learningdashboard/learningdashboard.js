@@ -33,7 +33,7 @@ class LearningDashboard extends MultiUsers {
     await this.modPage.waitAndClick(e.sendButton);
     await this.modPage.checkElementCount(e.chatUserMessageText, 1);
     await this.dashboardPage.reloadPage();
-    await this.dashboardPage.hasText(e.messageLearningDashboard, '1', ELEMENT_WAIT_EXTRA_LONG_TIME);
+    await this.dashboardPage.hasText(e.messageLearningDashboard, '1', 'should display the correct amount of messages sent', ELEMENT_WAIT_EXTRA_LONG_TIME);
   }
 
   async userTimeOnMeeting() {
@@ -60,7 +60,7 @@ class LearningDashboard extends MultiUsers {
     await this.modPage.waitAndClick(e.startPoll);
 
     await this.userPage.waitAndClick(e.pollAnswerOptionBtn);
-    await this.modPage.hasText(e.numberVotes, '1');
+    await this.modPage.hasText(e.userVoteLiveResult, 'True');
     await this.modPage.waitAndClick(e.cancelPollBtn);
 
     //ABCD
@@ -69,7 +69,7 @@ class LearningDashboard extends MultiUsers {
     await this.modPage.waitAndClick(e.pollLetterAlternatives);
     await this.modPage.waitAndClick(e.startPoll);
     await this.userPage.waitAndClick(e.pollAnswerOptionBtn);
-    await this.modPage.hasText(e.numberVotes, '1');
+    await this.modPage.hasText(e.userVoteLiveResult, 'A');
     await this.modPage.waitAndClick(e.cancelPollBtn);
 
     //Yes/No/Abstention
@@ -78,7 +78,7 @@ class LearningDashboard extends MultiUsers {
     await this.modPage.waitAndClick(e.pollYesNoAbstentionBtn);
     await this.modPage.waitAndClick(e.startPoll);
     await this.userPage.waitAndClick(e.pollAnswerOptionBtn);
-    await this.modPage.hasText(e.numberVotes, '1');
+    await this.modPage.hasText(e.userVoteLiveResult, 'Yes');
     await this.modPage.waitAndClick(e.cancelPollBtn);
 
     //User Response
@@ -89,7 +89,7 @@ class LearningDashboard extends MultiUsers {
     await this.userPage.waitForSelector(e.pollingContainer);
     await this.userPage.type(e.pollAnswerOptionInput, e.answerMessage);
     await this.userPage.waitAndClick(e.pollSubmitAnswer);
-    await this.modPage.hasText(e.numberVotes, '1');
+    await this.modPage.hasText(e.userVoteLiveResult, e.answerMessage);
     await this.modPage.waitAndClick(e.cancelPollBtn);
 
     //Checks
@@ -97,7 +97,7 @@ class LearningDashboard extends MultiUsers {
     const activityScore = await rowFilter(this.dashboardPage, 'tr', /Attendee/, e.userActivityScoreDashboard);
     await expect(activityScore).toHaveText(/2/, { timeout: ELEMENT_WAIT_EXTRA_LONG_TIME });
     await this.dashboardPage.waitAndClick(e.pollPanel);
-    await this.dashboardPage.hasText(e.pollTotal, '4', ELEMENT_WAIT_EXTRA_LONG_TIME);
+    await this.dashboardPage.hasText(e.pollTotal, '4', 'should display the correct amount of polls started in the session', ELEMENT_WAIT_EXTRA_LONG_TIME);
 
     //True / False
     await this.dashboardPage.hasText(e.pollTrueFalseQuestion, 'True/False?');
@@ -118,7 +118,7 @@ class LearningDashboard extends MultiUsers {
 
   async basicInfos() {
     // Meeting Status check
-    await this.dashboardPage.hasText(e.meetingStatusActiveDashboard, 'Active', ELEMENT_WAIT_LONGER_TIME);
+    await this.dashboardPage.hasText(e.meetingStatusActiveDashboard, 'Active', 'should display "Active" status', ELEMENT_WAIT_LONGER_TIME);
     await this.dashboardPage.reloadPage();
 
     // Meeting Time Duration check
@@ -138,7 +138,6 @@ class LearningDashboard extends MultiUsers {
   async overview() {
     await this.modPage.waitAndClick(e.joinVideo);
     await this.modPage.waitAndClick(e.startSharingWebcam);
-    await this.modPage.waitAndClick(e.reactionsButton);
     await this.modPage.waitAndClick(e.raiseHandBtn);
 
     await this.dashboardPage.reloadPage();
@@ -169,7 +168,7 @@ class LearningDashboard extends MultiUsers {
       'Talk time',
       'Webcam Time',
       'Messages',
-      'Emojis',
+      'Reactions',
       'Poll Votes',
       'Raise Hands',
       'Left',

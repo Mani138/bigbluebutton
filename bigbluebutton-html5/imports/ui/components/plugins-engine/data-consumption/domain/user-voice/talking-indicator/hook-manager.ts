@@ -4,7 +4,7 @@ import {
   HookEvents,
 } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/enum';
 import { DataConsumptionHooks } from 'bigbluebutton-html-plugin-sdk/dist/cjs/data-consumption/enums';
-import { UpdatedEventDetails } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/types';
+import { SubscribedEventDetails, UpdatedEventDetails } from 'bigbluebutton-html-plugin-sdk/dist/cjs/core/types';
 import formatTalkingIndicatorDataFromGraphql from './utils';
 import { UserVoice } from '/imports/ui/Types/userVoice';
 import { useTalkingIndicatorList } from '/imports/ui/core/hooks/useTalkingIndicator';
@@ -23,7 +23,7 @@ const TalkingIndicatorHookContainer = () => {
   const updateTalkingIndicatorForPlugin = () => {
     window.dispatchEvent(new CustomEvent<
       UpdatedEventDetails<PluginSdk.GraphqlResponseWrapper<PluginSdk.UserVoice[]>>
-    >(HookEvents.UPDATED, {
+    >(HookEvents.BBB_CORE_SENT_NEW_DATA, {
       detail: {
         data: formatTalkingIndicatorDataFromGraphql(userVoice),
         hook: DataConsumptionHooks.TALKING_INDICATOR,
@@ -36,15 +36,15 @@ const TalkingIndicatorHookContainer = () => {
   }, [userVoice, sendSignal]);
 
   useEffect(() => {
-    const updateHookUseTalkingIndicator = () => {
-      setSendSignal(!sendSignal);
-    };
+    const updateHookUseTalkingIndicator = ((event: CustomEvent<SubscribedEventDetails>) => {
+      if (event.detail.hook === DataConsumptionHooks.TALKING_INDICATOR) setSendSignal((signal) => !signal);
+    }) as EventListener;
     window.addEventListener(
-      HookEvents.SUBSCRIBED, updateHookUseTalkingIndicator,
+      HookEvents.PLUGIN_SUBSCRIBED_TO_BBB_CORE, updateHookUseTalkingIndicator,
     );
     return () => {
       window.removeEventListener(
-        HookEvents.SUBSCRIBED, updateHookUseTalkingIndicator,
+        HookEvents.PLUGIN_SUBSCRIBED_TO_BBB_CORE, updateHookUseTalkingIndicator,
       );
     };
   }, []);
